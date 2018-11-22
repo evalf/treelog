@@ -27,7 +27,7 @@ class directory:
   '''Directory with support for dir_fd.'''
 
   def __init__(self, path):
-    os.makedirs(path, exist_ok=True)
+    os.makedirs(os.path.expanduser(path), exist_ok=True)
     if supports_fd:
       self._fd = os.open(path, flags=os.O_RDONLY) # convert to file descriptor
       self._path = None
