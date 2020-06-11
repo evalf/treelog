@@ -88,6 +88,32 @@ class StdoutLog(Log):
       'dbg.dat\n'
       'dbg\n'
       'warn\n')
+    self.assertEqual(captured.stderr, '')
+
+class StderrLog(Log):
+
+  @contextlib.contextmanager
+  def output_tester(self):
+    with capture() as captured:
+      yield treelog.StderrLog()
+    self.assertEqual(captured.stderr,
+      'my message\n'
+      'test.dat\n'
+      'my context > iter 1 > a\n'
+      'my context > iter 2 > b\n'
+      'my context > iter 3 > c\n'
+      'my context > multiple..\n'
+      '  ..lines\n'
+      'my context > generating\n'
+      'my context > test.dat\n'
+      'generate_test > test.dat\n'
+      'context step=0 > foo\n'
+      'context step=1 > bar\n'
+      'same.dat\n'
+      'dbg.dat\n'
+      'dbg\n'
+      'warn\n')
+    self.assertEqual(captured.stdout, '')
 
 class RichOutputLog(Log):
 
@@ -726,12 +752,14 @@ del Log # hide from unittest discovery
 
 @contextlib.contextmanager
 def capture():
-  with tempfile.TemporaryFile('w+', newline='') as f:
+  with tempfile.TemporaryFile('w+', newline='') as stdout, tempfile.TemporaryFile('w+', newline='') as stderr:
     class captured: pass
-    with contextlib.redirect_stdout(f):
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
       yield captured
-    f.seek(0)
-    captured.stdout = f.read()
+    stdout.seek(0)
+    captured.stdout = stdout.read()
+    stderr.seek(0)
+    captured.stderr = stderr.read()
 
 @contextlib.contextmanager
 def silent():

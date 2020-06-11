@@ -25,10 +25,10 @@ import sys, functools, contextlib, typing, typing_extensions
 from . import iter, proto
 from ._forward import TeeLog, FilterLog
 from ._silent import NullLog, DataLog, RecordLog
-from ._text import StdoutLog, RichOutputLog, LoggingLog
+from ._text import StdoutLog, StderrLog, RichOutputLog, LoggingLog
 from ._html import HtmlLog
 
-for _log in TeeLog, FilterLog, NullLog, DataLog, RecordLog, StdoutLog, RichOutputLog, LoggingLog, HtmlLog:
+for _log in TeeLog, FilterLog, NullLog, DataLog, RecordLog, StdoutLog, StderrLog, RichOutputLog, LoggingLog, HtmlLog:
   _log.__module__ = __name__
 del _log
 
