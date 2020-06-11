@@ -472,7 +472,7 @@ class TeeLog(Log):
       with open(os.path.join(tmpdir, 'test-1'), 'rb') as f:
         self.assertEqual(f.read(), b'test')
 
-class FilterLog(Log):
+class FilterMinLog(Log):
 
   @contextlib.contextmanager
   def output_tester(self):
@@ -490,6 +490,67 @@ class FilterLog(Log):
       ('popcontext',),
       ('open', 2, 'same.dat', 'wb', treelog.proto.Level.error),
       ('close', 2, b'test3'),
+      ('write', 'warn', treelog.proto.Level.warning)])
+
+class FilterMaxLog(Log):
+
+  @contextlib.contextmanager
+  def output_tester(self):
+    recordlog = treelog.RecordLog()
+    yield treelog.FilterLog(recordlog, maxlevel=treelog.proto.Level.user)
+    self.assertEqual(recordlog._messages, [
+      ('write', 'my message', treelog.proto.Level.user),
+      ('open', 0, 'test.dat', 'w', treelog.proto.Level.info),
+      ('close', 0, 'test1'),
+      ('pushcontext', 'my context'),
+      ('pushcontext', 'iter 1'),
+      ('write', 'a', treelog.proto.Level.info),
+      ('recontext', 'iter 2'),
+      ('write', 'b', treelog.proto.Level.info),
+      ('recontext', 'iter 3'),
+      ('write', 'c', treelog.proto.Level.info),
+      ('popcontext',),
+      ('open', 1, 'test.dat', 'wb', treelog.proto.Level.user),
+      ('write', 'generating', treelog.proto.Level.info),
+      ('close', 1, b'test2'),
+      ('recontext', 'context step=0'),
+      ('write', 'foo', treelog.proto.Level.info),
+      ('recontext', 'context step=1'),
+      ('write', 'bar', treelog.proto.Level.info),
+      ('popcontext',),
+      ('open', 2, 'dbg.dat', 'wb', treelog.proto.Level.debug),
+      ('close', 2, b'test4'),
+      ('write', 'dbg', treelog.proto.Level.debug)])
+
+class FilterMinMaxLog(Log):
+
+  @contextlib.contextmanager
+  def output_tester(self):
+    recordlog = treelog.RecordLog()
+    yield treelog.FilterLog(recordlog, minlevel=treelog.proto.Level.info, maxlevel=treelog.proto.Level.warning)
+    self.assertEqual(recordlog._messages, [
+      ('write', 'my message', treelog.proto.Level.user),
+      ('open', 0, 'test.dat', 'w', treelog.proto.Level.info),
+      ('close', 0, 'test1'),
+      ('pushcontext', 'my context'),
+      ('pushcontext', 'iter 1'),
+      ('write', 'a', treelog.proto.Level.info),
+      ('recontext', 'iter 2'),
+      ('write', 'b', treelog.proto.Level.info),
+      ('recontext', 'iter 3'),
+      ('write', 'c', treelog.proto.Level.info),
+      ('popcontext',),
+      ('open', 1, 'test.dat', 'wb', treelog.proto.Level.user),
+      ('write', 'generating', treelog.proto.Level.info),
+      ('close', 1, b'test2'),
+      ('recontext', 'generate_test'),
+      ('open', 2, 'test.dat', 'wb', treelog.proto.Level.warning),
+      ('close', 2, b'test3'),
+      ('recontext', 'context step=0'),
+      ('write', 'foo', treelog.proto.Level.info),
+      ('recontext', 'context step=1'),
+      ('write', 'bar', treelog.proto.Level.info),
+      ('popcontext',),
       ('write', 'warn', treelog.proto.Level.warning)])
 
 class LoggingLog(Log):

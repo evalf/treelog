@@ -70,9 +70,10 @@ class TeeLog:
 class FilterLog:
   '''Filter messages based on level.'''
 
-  def __init__(self, baselog: proto.Log, minlevel: proto.Level) -> None:
+  def __init__(self, baselog: proto.Log, minlevel: typing.Optional[proto.Level] = None, maxlevel: typing.Optional[proto.Level] = None) -> None:
     self._baselog = baselog
     self._minlevel = minlevel
+    self._maxlevel = maxlevel
 
   def pushcontext(self, title: str) -> None:
     self._baselog.pushcontext(title)
@@ -83,11 +84,19 @@ class FilterLog:
   def recontext(self, title: str) -> None:
     self._baselog.recontext(title)
 
+  def _passthrough(self, level: proto.Level) -> bool:
+    '''Return True if messages of the given level should pass through.'''
+    if self._minlevel is not None and level.value < self._minlevel.value:
+      return False
+    if self._maxlevel is not None and level.value > self._maxlevel.value:
+      return False
+    return True
+
   def write(self, text: str, level: proto.Level) -> None:
-    if level.value >= self._minlevel.value:
+    if self._passthrough(level):
       self._baselog.write(text, level)
 
   def open(self, filename: str, mode: str, level: proto.Level) -> typing_extensions.ContextManager[typing.IO[typing.Any]]:
-    return self._baselog.open(filename, mode, level) if level.value >= self._minlevel.value else _io.devnull(mode)
+    return self._baselog.open(filename, mode, level) if self._passthrough(level) else _io.devnull(mode)
 
 # vim:sw=2:sts=2:et
