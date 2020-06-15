@@ -88,6 +88,32 @@ class StdoutLog(Log):
       'dbg.dat\n'
       'dbg\n'
       'warn\n')
+    self.assertEqual(captured.stderr, '')
+
+class StderrLog(Log):
+
+  @contextlib.contextmanager
+  def output_tester(self):
+    with capture() as captured:
+      yield treelog.StderrLog()
+    self.assertEqual(captured.stderr,
+      'my message\n'
+      'test.dat\n'
+      'my context > iter 1 > a\n'
+      'my context > iter 2 > b\n'
+      'my context > iter 3 > c\n'
+      'my context > multiple..\n'
+      '  ..lines\n'
+      'my context > generating\n'
+      'my context > test.dat\n'
+      'generate_test > test.dat\n'
+      'context step=0 > foo\n'
+      'context step=1 > bar\n'
+      'same.dat\n'
+      'dbg.dat\n'
+      'dbg\n'
+      'warn\n')
+    self.assertEqual(captured.stdout, '')
 
 class RichOutputLog(Log):
 
@@ -472,7 +498,7 @@ class TeeLog(Log):
       with open(os.path.join(tmpdir, 'test-1'), 'rb') as f:
         self.assertEqual(f.read(), b'test')
 
-class FilterLog(Log):
+class FilterMinLog(Log):
 
   @contextlib.contextmanager
   def output_tester(self):
@@ -490,6 +516,67 @@ class FilterLog(Log):
       ('popcontext',),
       ('open', 2, 'same.dat', 'wb', treelog.proto.Level.error),
       ('close', 2, b'test3'),
+      ('write', 'warn', treelog.proto.Level.warning)])
+
+class FilterMaxLog(Log):
+
+  @contextlib.contextmanager
+  def output_tester(self):
+    recordlog = treelog.RecordLog()
+    yield treelog.FilterLog(recordlog, maxlevel=treelog.proto.Level.user)
+    self.assertEqual(recordlog._messages, [
+      ('write', 'my message', treelog.proto.Level.user),
+      ('open', 0, 'test.dat', 'w', treelog.proto.Level.info),
+      ('close', 0, 'test1'),
+      ('pushcontext', 'my context'),
+      ('pushcontext', 'iter 1'),
+      ('write', 'a', treelog.proto.Level.info),
+      ('recontext', 'iter 2'),
+      ('write', 'b', treelog.proto.Level.info),
+      ('recontext', 'iter 3'),
+      ('write', 'c', treelog.proto.Level.info),
+      ('popcontext',),
+      ('open', 1, 'test.dat', 'wb', treelog.proto.Level.user),
+      ('write', 'generating', treelog.proto.Level.info),
+      ('close', 1, b'test2'),
+      ('recontext', 'context step=0'),
+      ('write', 'foo', treelog.proto.Level.info),
+      ('recontext', 'context step=1'),
+      ('write', 'bar', treelog.proto.Level.info),
+      ('popcontext',),
+      ('open', 2, 'dbg.dat', 'wb', treelog.proto.Level.debug),
+      ('close', 2, b'test4'),
+      ('write', 'dbg', treelog.proto.Level.debug)])
+
+class FilterMinMaxLog(Log):
+
+  @contextlib.contextmanager
+  def output_tester(self):
+    recordlog = treelog.RecordLog()
+    yield treelog.FilterLog(recordlog, minlevel=treelog.proto.Level.info, maxlevel=treelog.proto.Level.warning)
+    self.assertEqual(recordlog._messages, [
+      ('write', 'my message', treelog.proto.Level.user),
+      ('open', 0, 'test.dat', 'w', treelog.proto.Level.info),
+      ('close', 0, 'test1'),
+      ('pushcontext', 'my context'),
+      ('pushcontext', 'iter 1'),
+      ('write', 'a', treelog.proto.Level.info),
+      ('recontext', 'iter 2'),
+      ('write', 'b', treelog.proto.Level.info),
+      ('recontext', 'iter 3'),
+      ('write', 'c', treelog.proto.Level.info),
+      ('popcontext',),
+      ('open', 1, 'test.dat', 'wb', treelog.proto.Level.user),
+      ('write', 'generating', treelog.proto.Level.info),
+      ('close', 1, b'test2'),
+      ('recontext', 'generate_test'),
+      ('open', 2, 'test.dat', 'wb', treelog.proto.Level.warning),
+      ('close', 2, b'test3'),
+      ('recontext', 'context step=0'),
+      ('write', 'foo', treelog.proto.Level.info),
+      ('recontext', 'context step=1'),
+      ('write', 'bar', treelog.proto.Level.info),
+      ('popcontext',),
       ('write', 'warn', treelog.proto.Level.warning)])
 
 class LoggingLog(Log):
@@ -665,12 +752,14 @@ del Log # hide from unittest discovery
 
 @contextlib.contextmanager
 def capture():
-  with tempfile.TemporaryFile('w+', newline='') as f:
+  with tempfile.TemporaryFile('w+', newline='') as stdout, tempfile.TemporaryFile('w+', newline='') as stderr:
     class captured: pass
-    with contextlib.redirect_stdout(f):
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
       yield captured
-    f.seek(0)
-    captured.stdout = f.read()
+    stdout.seek(0)
+    captured.stdout = stdout.read()
+    stderr.seek(0)
+    captured.stderr = stderr.read()
 
 @contextlib.contextmanager
 def silent():

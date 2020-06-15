@@ -66,6 +66,12 @@ class StdoutLog(ContextLog):
   def write(self, text: str, level: proto.Level) -> None:
     print(' > '.join((*self.currentcontext, text)))
 
+class StderrLog(ContextLog):
+  '''Output plain text to stream.'''
+
+  def write(self, text: str, level: proto.Level) -> None:
+    print(' > '.join((*self.currentcontext, text)), file=sys.stderr)
+
 class RichOutputLog(ContextLog):
   '''Output rich (colored,unicode) text to stream.'''
 
