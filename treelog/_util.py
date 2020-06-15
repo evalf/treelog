@@ -39,8 +39,11 @@ def animate():
   parser = argparse.ArgumentParser()
   parser.add_argument('uri')
   parser.add_argument('filename')
-  parser.add_argument('--fps', type=int, default=25)
-  parser.add_argument('--nframes', type=int, default=None)
+  parser.add_argument('--fps', type=int, default=25, help='framerate in frames per second')
+  parser.add_argument('--start', type=int, default=0, help='first frame (inclusive)')
+  parser.add_argument('--stop', type=int, default=None, help='last frame (exclusive)')
+  parser.add_argument('--preset', metavar='PRE', choices=['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow', 'placebo'], default='slow', help='collection of options that provide a certain encoding speed to compression ratio')
+  parser.add_argument('--crf', type=int, default=16, help='constant rate factor; lower results in higher quality at the expense of filesize')
   args = parser.parse_args()
 
   vcodec = {'.png': 'png', '.jpg': 'mjpeg', '.jpeg': 'mjpeg'}
@@ -59,13 +62,13 @@ def animate():
   cmd = '''ffmpeg
     -y -f image2pipe -vcodec {vcodec} -r {fps} -i -
     -movflags +faststart -r {fps}
-    -c:v libx264 -preset slow -profile:v high -vf format=yuv420p -crf 16
+    -c:v libx264 -preset {preset} -profile:v high -vf format=yuv420p -crf {crf}
     -bf 2 -g 30 -coder 1 {dst}
-  '''.format(vcodec=vcodec[ext.lower()], fps=args.fps, dst=dst)
+  '''.format(vcodec=vcodec[ext.lower()], fps=args.fps, preset=args.preset, crf=args.crf, dst=dst)
 
   p = subprocess.Popen(cmd.split(), stdin=subprocess.PIPE)
-  for hash in _iterbar('frame', hashes[args.filename][:args.nframes]):
-    p.stdin.write(_read(os.path.join(os.path.dirname(args.uri), hash + ext)))
+  for hash in _iterbar('frame', hashes[args.filename][args.start:args.stop]):
+    p.stdin.write(_read(os.path.join(os.path.dirname(args.uri), hash + ext), silent=True))
 
   print('waiting for encoding to finish')
   p.stdin.close()
@@ -98,8 +101,9 @@ def _open(uri):
   except Exception as e:
     sys.exit('error: {}'.format(e))
 
-def _read(name):
-  print('reading', name)
+def _read(name, silent=False):
+  if not silent:
+    print('reading', name)
   with _open(name) as f:
     return f.read()
 
