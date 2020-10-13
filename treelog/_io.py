@@ -18,9 +18,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import os, contextlib, random, functools, typing, types, sys
+import os, random, functools, typing, types, sys
 
-supports_fd = os.supports_dir_fd >= {os.open, os.link, os.unlink}
+supports_fd = os.supports_dir_fd >= {os.open, os.rename, os.stat, os.unlink}
 
 _devnull = os.open(os.devnull, os.O_WRONLY)
 _opener = lambda path, flags: os.dup(_devnull)
@@ -48,6 +48,15 @@ class directory:
       raise ValueError('invalid mode: {!r}'.format(mode))
     return open(self._join(filename), mode+'+', encoding=encoding, opener=lambda name, flags: os.open(name, flags|os.O_CREAT|os.O_EXCL, mode=umask, dir_fd=self._fd))
 
+  def unlink(self, filename: str) -> None:
+    os.unlink(self._join(filename), dir_fd=self._fd)
+
+  def stat(self, filename: str) -> os.stat_result:
+    return os.stat(self._join(filename), dir_fd=self._fd)
+
+  def rename(self, src: str, dst: str) -> None:
+    os.rename(self._join(src), self._join(dst), src_dir_fd=self._fd, dst_dir_fd=self._fd)
+
   def openfirstunused(self, filenames: typing.Iterable[str], mode: str, *, encoding: typing.Optional[str] = None, umask: int = 0o666) -> typing.Tuple[typing.IO[typing.Any], str]:
     for filename in filenames:
       try:
@@ -56,27 +65,8 @@ class directory:
         pass
     raise ValueError('all filenames are in use')
 
-  @contextlib.contextmanager
-  def temp(self, mode: str) -> typing.Generator[typing.IO[typing.Any], None, None]:
-    try:
-      f, name = self.openfirstunused(self._rng, mode)
-      with f:
-        yield f
-    finally:
-      os.unlink(f.name, dir_fd=self._fd)
-
-  def link(self, src: typing.IO[typing.Any], dst: str) -> None:
-    os.link(src.name, self._join(dst), src_dir_fd=self._fd, dst_dir_fd=self._fd)
-
-  def linkfirstunused(self, src: typing.IO[typing.Any], dsts: typing.Iterable[str]) -> str:
-    for dst in dsts:
-      try:
-        self.link(src, dst)
-      except FileExistsError:
-        pass
-      else:
-        return dst
-    raise ValueError('all destinations are in use')
+  def openrandom(self, mode: str) -> typing.Tuple[typing.IO[typing.Any], str]:
+    return self.openfirstunused(self._rng, mode)
 
   def __del__(self) -> None:
     if os and os.close and self._fd is not None:

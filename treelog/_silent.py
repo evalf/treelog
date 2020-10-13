@@ -47,9 +47,13 @@ class DataLog:
 
   @contextlib.contextmanager
   def open(self, filename: str, mode: str, level: proto.Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
-    with self._dir.temp(mode) as f:
-      yield f
-      self._dir.linkfirstunused(f, self._names(filename))
+    f, name = self._dir.openfirstunused(self._names(filename), mode)
+    try:
+      with f:
+        yield f
+    except:
+      self._dir.unlink(name)
+      raise
 
   def pushcontext(self, title: str) -> None:
     pass
