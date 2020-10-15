@@ -73,14 +73,21 @@ class HtmlLog:
   @contextlib.contextmanager
   def open(self, filename: str, mode: str, level: proto.Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
     base, ext = os.path.splitext(filename)
-    with self._dir.temp(mode) as f:
-      yield f
-      f.seek(0)
-      realname = _filehash(f.fileno(), 'sha1').hex() + ext
-      try:
-        self._dir.link(f, realname)
-      except FileExistsError:
-        pass
+    f, name = self._dir.openrandom(mode)
+    try:
+      with f:
+        yield f
+        f.seek(0)
+        realname = _filehash(f.fileno(), 'sha1').hex() + ext
+    except:
+      self._dir.unlink(name)
+      raise
+    try:
+      self._dir.stat(realname)
+    except FileNotFoundError:
+      self._dir.rename(name, realname)
+    else:
+      self._dir.unlink(name)
     self.write('<a href="{href}" download="{name}">{name}</a>'.format(href=urllib.parse.quote(realname), name=html.escape(filename)), level, escape=False)
 
   def close(self) -> bool:
