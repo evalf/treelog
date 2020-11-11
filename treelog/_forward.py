@@ -24,48 +24,64 @@ from . import proto, _io
 class TeeLog:
   '''Forward messages to two underlying loggers.'''
 
-  def __init__(self, baselog1: proto.Log, baselog2: proto.Log) -> None:
-    self._baselog1 = baselog1
-    self._baselog2 = baselog2
+  def __init__(self, *baselogs: proto.Log) -> None:
+    self._baselogs = baselogs
 
   def pushcontext(self, title: str) -> None:
-    self._baselog1.pushcontext(title)
-    self._baselog2.pushcontext(title)
+    for log in self._baselogs:
+      log.pushcontext(title)
 
   def popcontext(self) -> None:
-    self._baselog1.popcontext()
-    self._baselog2.popcontext()
+    for log in self._baselogs:
+      log.popcontext()
 
   def recontext(self, title: str) -> None:
-    self._baselog1.recontext(title)
-    self._baselog2.recontext(title)
+    for log in self._baselogs:
+      log.recontext(title)
 
   def write(self, text: str, level: proto.Level) -> None:
-    self._baselog1.write(text, level)
-    self._baselog2.write(text, level)
+    for log in self._baselogs:
+      log.write(text, level)
 
   @contextlib.contextmanager
   def open(self, filename: str, mode: str, level: proto.Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
-    with self._baselog1.open(filename, mode, level) as f1, self._baselog2.open(filename, mode, level) as f2:
-      if f1.name == os.devnull:
-        yield f2
-      elif f2.name == os.devnull:
-        yield f1
-      elif f2.seekable() and f2.readable():
-        yield f2
-        f2.seek(0)
-        f1.write(f2.read())
-      elif f1.seekable() and f1.readable():
-        yield f1
-        f1.seek(0)
-        f2.write(f1.read())
+    with contextlib.ExitStack() as stack:
+      files = [stack.enter_context(log.open(filename, mode, level)) for log in self._baselogs]
+
+      # Remove null files
+      files = [f for f in files if f.name != os.devnull]
+      if not files:
+        with _io.devnull(mode) as f:
+          yield f
+        return
+
+      # If only one file remains, use it and do nothing
+      if len(files) == 1:
+        yield files[0]
+        return
+
+      # If at least one file is seekable and readable, use it
+      # and copy its data to the others
+      try:
+        i, src = next((i, f) for i, f in enumerate(files) if f.seekable() and f.readable())
+      except StopIteration:
+        pass
       else:
-        with tempfile.TemporaryFile(mode+'+') as tmp:
-          yield tmp
-          tmp.seek(0)
-          data = tmp.read()
-        f1.write(data)
-        f2.write(data)
+        del files[i]
+        yield src
+        src.seek(0)
+        data = src.read()
+        for tgt in files:
+          tgt.write(data)
+        return
+
+      # Write to a temporary file then copy its data to the others
+      with tempfile.TemporaryFile(mode + '+') as tmp:
+        yield tmp
+        tmp.seek(0)
+        data = tmp.read()
+      for f in files:
+        f.write(data)
 
 class FilterLog:
   '''Filter messages based on level.'''

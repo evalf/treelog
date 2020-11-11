@@ -413,7 +413,7 @@ class TeeLog(Log):
     with DataLog.output_tester(self) as datalog, \
          RecordLog.output_tester(self) as recordlog, \
          RichOutputLog.output_tester(self) as richoutputlog:
-      yield treelog.TeeLog(richoutputlog, treelog.TeeLog(datalog, recordlog))
+      yield treelog.TeeLog(richoutputlog, datalog, recordlog)
 
   def test_open_devnull_devnull(self):
     teelog = treelog.TeeLog(treelog.StdoutLog(), treelog.StdoutLog())
