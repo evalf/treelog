@@ -11,6 +11,8 @@ if os.getenv('TREELOG_USE_MYPYC', None) == '1':
 else:
   ext_modules = []
 
+utils = 'fetch', 'animate', 'gc'
+
 setup(
   name = 'treelog',
   version = version,
@@ -21,6 +23,7 @@ setup(
   packages = ['treelog'],
   package_data = {'treelog': ['py.typed']},
   ext_modules=ext_modules,
+  entry_points = {'console_scripts': ['treelog-{0}=treelog._util:{0}'.format(util) for util in utils]},
   license = 'MIT',
   python_requires = '>=3.5',
   install_requires = ['typing_extensions'],
