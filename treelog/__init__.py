@@ -18,9 +18,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-version = '1.0'
+version = '1.1'
 
-import sys, functools, contextlib, typing, typing_extensions
+import sys, os, functools, contextlib, typing, typing_extensions
 
 from . import iter, proto
 from ._forward import TeeLog, FilterLog
@@ -34,7 +34,19 @@ del _log
 
 Log = None # For backwards compatibility.
 
-current = FilterLog(TeeLog(StdoutLog(), DataLog()), minlevel=proto.Level.info) # type: proto.Log
+# initialize logger based on TREELOG_RICH variable (yes/no) falling back on stdout.isatty
+_isatty = os.getenv('TREELOG_RICH', '').lower()
+current = RichOutputLog() if _isatty == 'yes' or _isatty != 'no' and sys.stdout.isatty() else StdoutLog()
+
+# configure filter based on TREELOG_FILTER variable (error/warning/..) falling back on info
+_filter = os.getenv('TREELOG_FILTER', '').lower()
+if _filter != 'debug':
+  current = FilterLog(current, getattr(proto.Level, _filter, proto.Level.info))
+
+# add data logger if TREELOG_DATA is not empty
+_data = os.getenv('TREELOG_DATA', '').lower()
+if _data:
+  current = TeeLog(current, DataLog(_data))
 
 @contextlib.contextmanager
 def set(logger: proto.Log) -> typing.Generator[proto.Log, None, None]:
