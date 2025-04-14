@@ -1,6 +1,5 @@
 import contextlib
 import typing
-import typing_extensions
 import tempfile
 import warnings
 import os
@@ -83,5 +82,5 @@ class FilterLog:
         if self._passthrough(level):
             self._baselog.write(text, level)
 
-    def open(self, filename: str, mode: str, level: proto.Level) -> typing_extensions.ContextManager[typing.IO[typing.Any]]:
+    def open(self, filename: str, mode: str, level: proto.Level) -> typing.ContextManager[typing.IO[typing.Any]]:
         return self._baselog.open(filename, mode, level) if self._passthrough(level) else _io.devnull(mode)

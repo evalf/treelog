@@ -2,7 +2,6 @@ import os
 import contextlib
 import functools
 import typing
-import typing_extensions
 import tempfile
 from . import proto, _io
 
@@ -21,7 +20,7 @@ class NullLog:
     def write(self, text: str, level: proto.Level) -> None:
         pass
 
-    def open(self, filename: str, mode: str, level: proto.Level) -> typing_extensions.ContextManager[typing.IO[typing.Any]]:
+    def open(self, filename: str, mode: str, level: proto.Level) -> typing.ContextManager[typing.IO[typing.Any]]:
         return _io.devnull(mode)
 
 

@@ -1,5 +1,4 @@
 import typing
-import typing_extensions
 import enum
 
 
@@ -12,7 +11,7 @@ class Level(enum.Enum):
     error = 4
 
 
-class Log(typing_extensions.Protocol):
+class Log(typing.Protocol):
 
     def pushcontext(self, title: str) -> None: ...
     def popcontext(self) -> None: ...
@@ -20,4 +19,4 @@ class Log(typing_extensions.Protocol):
     def write(self, text: str, level: Level) -> None: ...
 
     def open(self, filename: str, mode: str,
-             level: Level) -> typing_extensions.ContextManager[typing.IO[typing.Any]]: ...
+             level: Level) -> typing.ContextManager[typing.IO[typing.Any]]: ...

@@ -1,4 +1,3 @@
-import typing_extensions
 import typing
 import contextlib
 import functools
@@ -34,13 +33,13 @@ def set(logger: proto.Log) -> typing.Generator[proto.Log, None, None]:
         current = old
 
 
-def add(logger: proto.Log) -> typing_extensions.ContextManager[proto.Log]:
+def add(logger: proto.Log) -> typing.ContextManager[proto.Log]:
     '''Add logger to current.'''
 
     return set(TeeLog(current, logger))
 
 
-def disable() -> typing_extensions.ContextManager[proto.Log]:
+def disable() -> typing.ContextManager[proto.Log]:
     '''Disable logger.'''
 
     return set(NullLog())
@@ -87,7 +86,7 @@ def withcontext(f: typing.Callable[..., T]) -> typing.Callable[..., T]:
 class _Print:
 
     def __init__(self, level: proto.Level) -> None:
-        self._level = level  # type: typing_extensions.Final[proto.Level]
+        self._level = level  # type: typing.Final[proto.Level]
 
     def __call__(self, *args: typing.Any, sep: str = ' ') -> None:
         '''Write message to log.
@@ -102,18 +101,18 @@ class _Print:
         current.write(sep.join(map(str, args)), self._level)
 
     @typing.overload
-    def open(self, name: str, mode: typing_extensions.Literal['w']
-             ) -> typing_extensions.ContextManager[typing.IO[str]]: ...
+    def open(self, name: str, mode: typing.Literal['w']
+             ) -> typing.ContextManager[typing.IO[str]]: ...
 
     @typing.overload
-    def open(self, name: str, mode: typing_extensions.Literal['wb']
-             ) -> typing_extensions.ContextManager[typing.IO[bytes]]: ...
+    def open(self, name: str, mode: typing.Literal['wb']
+             ) -> typing.ContextManager[typing.IO[bytes]]: ...
 
     @typing.overload
     def open(self, name: str,
-             mode: str) -> typing_extensions.ContextManager[typing.IO[typing.Any]]: ...
+             mode: str) -> typing.ContextManager[typing.IO[typing.Any]]: ...
 
-    def open(self, name: str, mode: str) -> typing_extensions.ContextManager[typing.IO[typing.Any]]:
+    def open(self, name: str, mode: str) -> typing.ContextManager[typing.IO[typing.Any]]:
         '''Open file in logger-controlled directory.
 
         Args
