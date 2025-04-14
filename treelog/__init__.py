@@ -1,3 +1,7 @@
+'Logging framework that organizes messages in a tree'
+
+__version__ = '1.0'
+
 import typing
 import contextlib
 import functools
@@ -7,7 +11,7 @@ from ._text import StdoutLog, StderrLog, RichOutputLog, LoggingLog
 from ._silent import NullLog, DataLog, RecordLog
 from ._forward import TeeLog, FilterLog
 from . import iter, proto
-version = '1.0'
+version = __version__
 
 
 for _log in TeeLog, FilterLog, NullLog, DataLog, RecordLog, StdoutLog, StderrLog, RichOutputLog, LoggingLog, HtmlLog:

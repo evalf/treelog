@@ -1,0 +1,15 @@
+[project]
+name = "treelog"
+readme = "README.md"
+authors = [
+    { name = "Evalf", email = "info@evalf.com" },
+]
+requires-python = '>=3.9'
+dynamic = ["description", "version"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
+
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
