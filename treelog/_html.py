@@ -1,22 +1,24 @@
 import contextlib
-import sys
-import os
-import urllib.parse
-import html
 import hashlib
-import warnings
-import typing
+import html
+import os
+import sys
 import types
-from . import proto, _io
+import typing
+import urllib.parse
+import warnings
+
+from ._io import directory, sequence
+from .proto import Level
 
 
 class HtmlLog:
     '''Output html nested lists.'''
 
     def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
-        self._dir = _io.directory(dirpath)
+        self._dir = directory(dirpath)
         self._file, self.filename = self._dir.openfirstunused(
-            _io.sequence(filename), 'w', encoding='utf-8')
+            sequence(filename), 'w', encoding='utf-8')
         css = hashlib.sha1(CSS.encode()).hexdigest() + '.css'
         try:
             with self._dir.open(css, 'w') as f:
@@ -53,7 +55,7 @@ class HtmlLog:
         self.popcontext()
         self.pushcontext(title)
 
-    def write(self, text: str, level: proto.Level, escape: bool = True) -> None:
+    def write(self, text: str, level: Level, escape: bool = True) -> None:
         for c in self._unopened:
             print('<div class="context"><div class="title">{}</div><div class="children">'.format(
                 html.escape(c)), file=self._file)
@@ -64,7 +66,7 @@ class HtmlLog:
               text), file=self._file, flush=True)
 
     @contextlib.contextmanager
-    def open(self, filename: str, mode: str, level: proto.Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
+    def open(self, filename: str, mode: str, level: Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
         base, ext = os.path.splitext(filename)
         f, name = self._dir.openrandom(mode)
         try:

@@ -1,57 +1,8 @@
-import os
 import contextlib
-import functools
-import typing
 import tempfile
-from . import proto, _io
+import typing
 
-
-class NullLog:
-
-    def pushcontext(self, title: str) -> None:
-        pass
-
-    def popcontext(self) -> None:
-        pass
-
-    def recontext(self, title: str) -> None:
-        pass
-
-    def write(self, text: str, level: proto.Level) -> None:
-        pass
-
-    def open(self, filename: str, mode: str, level: proto.Level) -> typing.ContextManager[typing.IO[typing.Any]]:
-        return _io.devnull(mode)
-
-
-class DataLog:
-    '''Output only data.'''
-
-    def __init__(self, dirpath: str = os.curdir, names: typing.Callable[[str], typing.Iterable[str]] = _io.sequence) -> None:
-        self._names = functools.lru_cache(maxsize=32)(names)
-        self._dir = _io.directory(dirpath)
-
-    @contextlib.contextmanager
-    def open(self, filename: str, mode: str, level: proto.Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
-        f, name = self._dir.openfirstunused(self._names(filename), mode)
-        try:
-            with f:
-                yield f
-        except:
-            self._dir.unlink(name)
-            raise
-
-    def pushcontext(self, title: str) -> None:
-        pass
-
-    def popcontext(self) -> None:
-        pass
-
-    def recontext(self, title: str) -> None:
-        pass
-
-    def write(self, text: str, level: proto.Level) -> None:
-        pass
+from .proto import Level, Log
 
 
 class RecordLog:
@@ -102,7 +53,7 @@ class RecordLog:
             self._messages.append(('popcontext',))
 
     @contextlib.contextmanager
-    def open(self, filename: str, mode: str, level: proto.Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
+    def open(self, filename: str, mode: str, level: Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
         fid = self._fid
         self._fid += 1
         self._messages.append(('open', fid, filename, mode, level))
@@ -113,10 +64,10 @@ class RecordLog:
                 g.seek(0)
                 self._messages.append(('close', fid, g.read()))
 
-    def write(self, text: str, level: proto.Level) -> None:
+    def write(self, text: str, level: Level) -> None:
         self._messages.append(('write', text, level))
 
-    def replay(self, log: typing.Optional[proto.Log] = None) -> None:
+    def replay(self, log: typing.Optional[Log] = None) -> None:
         '''Replay this recorded log.
 
         All recorded messages and files will be written to the log that is either
@@ -124,8 +75,7 @@ class RecordLog:
 
         files = {}
         if log is None:
-            from . import current
-            log = current
+            from ._state import current as log
         for cmd, *args in self._messages:
             if cmd == 'pushcontext':
                 title, = args

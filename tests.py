@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 
 import treelog
+import treelog._io
 import unittest
 import contextlib
 import tempfile
