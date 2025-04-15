@@ -9,7 +9,6 @@ _sub_mods = {
     'iter'
 }
 _state_attrs = {
-    'current',
     'set',
     'add',
     'disable',
@@ -77,6 +76,5 @@ def __getattr__(attr):
         obj = _legacy[attr]
     else:
         raise AttributeError(attr)
-    if attr != 'current':
-        globals()[attr] = obj
+    globals()[attr] = obj
     return obj

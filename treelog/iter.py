@@ -4,7 +4,7 @@ import warnings
 import inspect
 import typing
 import types
-from . import proto
+from . import proto, _state
 
 T = typing.TypeVar('T')
 T0 = typing.TypeVar('T0')
@@ -36,8 +36,7 @@ class wrap(typing.Generic[T]):
     def __enter__(self) -> typing.Iterator[T]:
         if self._log is not None:
             raise Exception('iter.wrap is not reentrant')
-        from . import current
-        self._log = current
+        self._log = _state.current
         self._log.pushcontext(next(self._titles))
         return iter(self)
 

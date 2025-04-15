@@ -20,6 +20,7 @@
 
 import treelog
 import treelog._io
+import treelog._state
 import unittest
 import contextlib
 import tempfile
@@ -644,7 +645,7 @@ class NullLog(Log):
 
     def test_disable(self):
         with treelog.disable():
-            self.assertIsInstance(treelog.current, treelog.NullLog)
+            self.assertIsInstance(treelog._state.current, treelog.NullLog)
 
 
 class Iter(unittest.TestCase):
