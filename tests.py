@@ -650,11 +650,9 @@ class Iter(unittest.TestCase):
 
     def setUp(self):
         self.recordlog = treelog.RecordLog(simplify=False)
-        self.previous = treelog.current
-        treelog.current = self.recordlog
-
-    def tearDown(self):
-        treelog.current = self.previous
+        c = treelog.set(self.recordlog)
+        c.__enter__()
+        self.addCleanup(c.__exit__, None, None, None)
 
     def assertMessages(self, *msg):
         self.assertEqual(self.recordlog._messages, list(msg))
