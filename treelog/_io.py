@@ -1,80 +1,98 @@
-import os, random, functools, typing, types, sys
+import os
+import random
+import functools
+import typing
+import types
+import sys
 
 supports_fd = os.supports_dir_fd >= {os.open, os.rename, os.stat, os.unlink}
 
 _devnull = os.open(os.devnull, os.O_WRONLY)
-_opener = lambda path, flags: os.dup(_devnull)
+def _opener(path, flags): return os.dup(_devnull)
+
+
 devnull = functools.partial(open, os.devnull, opener=_opener)
 
+
 class directory:
-  '''Directory with support for dir_fd.'''
+    '''Directory with support for dir_fd.'''
 
-  def __init__(self, path: str) -> None:
-    os.makedirs(path, exist_ok=True)
-    if supports_fd:
-      # convert to file descriptor
-      self._fd = os.open(path, flags=os.O_RDONLY) # type: typing.Optional[int]
-      self._path = None # type: typing.Optional[str]
-    else:
-      self._fd = None
-      self._path = path
-    self._rng = randomnames()
+    def __init__(self, path: str) -> None:
+        os.makedirs(path, exist_ok=True)
+        if supports_fd:
+            # convert to file descriptor
+            # type: typing.Optional[int]
+            self._fd = os.open(path, flags=os.O_RDONLY)
+            self._path = None  # type: typing.Optional[str]
+        else:
+            self._fd = None
+            self._path = path
+        self._rng = randomnames()
 
-  def _join(self, name: str) -> str:
-    return name if self._path is None else os.path.join(self._path, name)
+    def _join(self, name: str) -> str:
+        return name if self._path is None else os.path.join(self._path, name)
 
-  def open(self, filename: str, mode: str, *, encoding: typing.Optional[str] = None, umask: int = 0o666) -> typing.IO[typing.Any]:
-    if mode not in ('w', 'wb'):
-      raise ValueError('invalid mode: {!r}'.format(mode))
-    return open(self._join(filename), mode+'+', encoding=encoding, opener=lambda name, flags: os.open(name, flags|os.O_CREAT|os.O_EXCL, mode=umask, dir_fd=self._fd))
+    def open(self, filename: str, mode: str, *, encoding: typing.Optional[str] = None, umask: int = 0o666) -> typing.IO[typing.Any]:
+        if mode not in ('w', 'wb'):
+            raise ValueError('invalid mode: {!r}'.format(mode))
+        return open(self._join(filename), mode+'+', encoding=encoding, opener=lambda name, flags: os.open(name, flags | os.O_CREAT | os.O_EXCL, mode=umask, dir_fd=self._fd))
 
-  def unlink(self, filename: str) -> None:
-    os.unlink(self._join(filename), dir_fd=self._fd)
+    def unlink(self, filename: str) -> None:
+        os.unlink(self._join(filename), dir_fd=self._fd)
 
-  def stat(self, filename: str) -> os.stat_result:
-    return os.stat(self._join(filename), dir_fd=self._fd)
+    def stat(self, filename: str) -> os.stat_result:
+        return os.stat(self._join(filename), dir_fd=self._fd)
 
-  def rename(self, src: str, dst: str) -> None:
-    os.rename(self._join(src), self._join(dst), src_dir_fd=self._fd, dst_dir_fd=self._fd)
+    def rename(self, src: str, dst: str) -> None:
+        os.rename(self._join(src), self._join(dst),
+                  src_dir_fd=self._fd, dst_dir_fd=self._fd)
 
-  def openfirstunused(self, filenames: typing.Iterable[str], mode: str, *, encoding: typing.Optional[str] = None, umask: int = 0o666) -> typing.Tuple[typing.IO[typing.Any], str]:
-    for filename in filenames:
-      try:
-        return self.open(filename, mode, encoding=encoding, umask=umask), filename
-      except FileExistsError:
-        pass
-    raise ValueError('all filenames are in use')
+    def openfirstunused(self, filenames: typing.Iterable[str], mode: str, *, encoding: typing.Optional[str] = None, umask: int = 0o666) -> typing.Tuple[typing.IO[typing.Any], str]:
+        for filename in filenames:
+            try:
+                return self.open(filename, mode, encoding=encoding, umask=umask), filename
+            except FileExistsError:
+                pass
+        raise ValueError('all filenames are in use')
 
-  def openrandom(self, mode: str) -> typing.Tuple[typing.IO[typing.Any], str]:
-    return self.openfirstunused(self._rng, mode)
+    def openrandom(self, mode: str) -> typing.Tuple[typing.IO[typing.Any], str]:
+        return self.openfirstunused(self._rng, mode)
 
-  def __del__(self) -> None:
-    if os and os.close and self._fd is not None:
-      os.close(self._fd)
+    def __del__(self) -> None:
+        if os and os.close and self._fd is not None:
+            os.close(self._fd)
+
 
 def sequence(filename: str) -> typing.Generator[str, None, None]:
-  '''Generate file names a.b, a-1.b, a-2.b, etc.'''
+    '''Generate file names a.b, a-1.b, a-2.b, etc.'''
 
-  yield filename
-  splitext = os.path.splitext(filename)
-  i = 1
-  while True:
-    yield '-{}'.format(i).join(splitext)
-    i += 1
+    yield filename
+    splitext = os.path.splitext(filename)
+    i = 1
+    while True:
+        yield '-{}'.format(i).join(splitext)
+        i += 1
+
 
 def randomnames(characters: str = 'abcdefghijklmnopqrstuvwxyz0123456789_', length: int = 8) -> typing.Generator[str, None, None]:
-  rng = random.Random()
-  while True:
-    yield ''.join(rng.choice(characters) for dummy in range(length))
+    rng = random.Random()
+    while True:
+        yield ''.join(rng.choice(characters) for dummy in range(length))
+
 
 def set_ansi_console() -> None:
-  if sys.platform == "win32":
-    import platform
-    if platform.version() < '10.':
-      raise RuntimeError('ANSI console mode requires Windows 10 or higher, detected {}'.format(platform.version()))
-    import ctypes
-    handle = ctypes.windll.kernel32.GetStdHandle(-11) # https://docs.microsoft.com/en-us/windows/console/getstdhandle
-    mode = ctypes.c_uint32() # https://docs.microsoft.com/en-us/windows/desktop/WinProg/windows-data-types#lpdword
-    ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)) # https://docs.microsoft.com/en-us/windows/console/getconsolemode
-    mode.value |= 4 # add ENABLE_VIRTUAL_TERMINAL_PROCESSING
-    ctypes.windll.kernel32.SetConsoleMode(handle, mode) # https://docs.microsoft.com/en-us/windows/console/setconsolemode
+    if sys.platform == "win32":
+        import platform
+        if platform.version() < '10.':
+            raise RuntimeError(
+                'ANSI console mode requires Windows 10 or higher, detected {}'.format(platform.version()))
+        import ctypes
+        # https://docs.microsoft.com/en-us/windows/console/getstdhandle
+        handle = ctypes.windll.kernel32.GetStdHandle(-11)
+        # https://docs.microsoft.com/en-us/windows/desktop/WinProg/windows-data-types#lpdword
+        mode = ctypes.c_uint32()
+        # https://docs.microsoft.com/en-us/windows/console/getconsolemode
+        ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode))
+        mode.value |= 4  # add ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        # https://docs.microsoft.com/en-us/windows/console/setconsolemode
+        ctypes.windll.kernel32.SetConsoleMode(handle, mode)

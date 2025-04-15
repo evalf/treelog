@@ -1,92 +1,107 @@
-import contextlib, sys, os, urllib.parse, html, hashlib, warnings, typing, types
+import contextlib
+import sys
+import os
+import urllib.parse
+import html
+import hashlib
+import warnings
+import typing
+import types
 from . import proto, _io
 
+
 class HtmlLog:
-  '''Output html nested lists.'''
+    '''Output html nested lists.'''
 
-  def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
-    self._dir = _io.directory(dirpath)
-    self._file, self.filename = self._dir.openfirstunused(_io.sequence(filename), 'w', encoding='utf-8')
-    css = hashlib.sha1(CSS.encode()).hexdigest() + '.css'
-    try:
-      with self._dir.open(css, 'w') as f:
-        f.write(CSS)
-    except FileExistsError:
-      pass
-    js = hashlib.sha1(JS.encode()).hexdigest() + '.js'
-    try:
-      with self._dir.open(js, 'w') as f:
-        f.write(JS)
-    except FileExistsError:
-      pass
-    if title is None:
-      title = ' '.join(sys.argv)
-    if htmltitle is None:
-      htmltitle = html.escape(title)
-    if favicon is None:
-      favicon = FAVICON
-    self._file.write(HTMLHEAD.format(title=title, htmltitle=htmltitle, css=css, js=js, favicon=favicon))
-    # active contexts that are not yet opened as html elements
-    self._unopened = [] # type: typing.List[str]
+    def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
+        self._dir = _io.directory(dirpath)
+        self._file, self.filename = self._dir.openfirstunused(
+            _io.sequence(filename), 'w', encoding='utf-8')
+        css = hashlib.sha1(CSS.encode()).hexdigest() + '.css'
+        try:
+            with self._dir.open(css, 'w') as f:
+                f.write(CSS)
+        except FileExistsError:
+            pass
+        js = hashlib.sha1(JS.encode()).hexdigest() + '.js'
+        try:
+            with self._dir.open(js, 'w') as f:
+                f.write(JS)
+        except FileExistsError:
+            pass
+        if title is None:
+            title = ' '.join(sys.argv)
+        if htmltitle is None:
+            htmltitle = html.escape(title)
+        if favicon is None:
+            favicon = FAVICON
+        self._file.write(HTMLHEAD.format(
+            title=title, htmltitle=htmltitle, css=css, js=js, favicon=favicon))
+        # active contexts that are not yet opened as html elements
+        self._unopened = []  # type: typing.List[str]
 
-  def pushcontext(self, title: str) -> None:
-    self._unopened.append(title)
+    def pushcontext(self, title: str) -> None:
+        self._unopened.append(title)
 
-  def popcontext(self) -> None:
-    if self._unopened:
-      self._unopened.pop()
-    else:
-      print('</div><div class="end"></div></div>', file=self._file)
+    def popcontext(self) -> None:
+        if self._unopened:
+            self._unopened.pop()
+        else:
+            print('</div><div class="end"></div></div>', file=self._file)
 
-  def recontext(self, title: str) -> None:
-    self.popcontext()
-    self.pushcontext(title)
+    def recontext(self, title: str) -> None:
+        self.popcontext()
+        self.pushcontext(title)
 
-  def write(self, text: str, level: proto.Level, escape: bool = True) -> None:
-    for c in self._unopened:
-      print('<div class="context"><div class="title">{}</div><div class="children">'.format(html.escape(c)), file=self._file)
-    self._unopened.clear()
-    if escape:
-      text = html.escape(text)
-    print('<div class="item" data-loglevel="{}">{}</div>'.format(level.value, text), file=self._file, flush=True)
+    def write(self, text: str, level: proto.Level, escape: bool = True) -> None:
+        for c in self._unopened:
+            print('<div class="context"><div class="title">{}</div><div class="children">'.format(
+                html.escape(c)), file=self._file)
+        self._unopened.clear()
+        if escape:
+            text = html.escape(text)
+        print('<div class="item" data-loglevel="{}">{}</div>'.format(level.value,
+              text), file=self._file, flush=True)
 
-  @contextlib.contextmanager
-  def open(self, filename: str, mode: str, level: proto.Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
-    base, ext = os.path.splitext(filename)
-    f, name = self._dir.openrandom(mode)
-    try:
-      with f:
-        yield f
-        f.seek(0)
-        realname = _filehash(f.fileno(), 'sha1').hex() + ext
-    except:
-      self._dir.unlink(name)
-      raise
-    try:
-      self._dir.stat(realname)
-    except FileNotFoundError:
-      self._dir.rename(name, realname)
-    else:
-      self._dir.unlink(name)
-    self.write('<a href="{href}" download="{name}">{name}</a>'.format(href=urllib.parse.quote(realname), name=html.escape(filename)), level, escape=False)
+    @contextlib.contextmanager
+    def open(self, filename: str, mode: str, level: proto.Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
+        base, ext = os.path.splitext(filename)
+        f, name = self._dir.openrandom(mode)
+        try:
+            with f:
+                yield f
+                f.seek(0)
+                realname = _filehash(f.fileno(), 'sha1').hex() + ext
+        except:
+            self._dir.unlink(name)
+            raise
+        try:
+            self._dir.stat(realname)
+        except FileNotFoundError:
+            self._dir.rename(name, realname)
+        else:
+            self._dir.unlink(name)
+        self.write('<a href="{href}" download="{name}">{name}</a>'.format(
+            href=urllib.parse.quote(realname), name=html.escape(filename)), level, escape=False)
 
-  def close(self) -> bool:
-    if hasattr(self, '_file') and not self._file.closed:
-      self._file.write(HTMLFOOT)
-      self._file.close()
-      return True
-    else:
-      return False
+    def close(self) -> bool:
+        if hasattr(self, '_file') and not self._file.closed:
+            self._file.write(HTMLFOOT)
+            self._file.close()
+            return True
+        else:
+            return False
 
-  def __enter__(self) -> 'HtmlLog':
-    return self
+    def __enter__(self) -> 'HtmlLog':
+        return self
 
-  def __exit__(self, t: typing.Optional[typing.Type[BaseException]], value: typing.Optional[BaseException], traceback: typing.Optional[types.TracebackType]) -> None:
-    self.close()
+    def __exit__(self, t: typing.Optional[typing.Type[BaseException]], value: typing.Optional[BaseException], traceback: typing.Optional[types.TracebackType]) -> None:
+        self.close()
 
-  def __del__(self) -> None:
-    if self.close():
-      warnings.warn('unclosed object {!r}'.format(self), ResourceWarning)
+    def __del__(self) -> None:
+        if self.close():
+            warnings.warn('unclosed object {!r}'.format(self), ResourceWarning)
+
 
 HTMLHEAD = '''\
 <!DOCTYPE html>
@@ -756,16 +771,17 @@ window.addEventListener('load', function() {
 '''
 
 FAVICON = 'data:image/png;base64,' \
-  'iVBORw0KGgoAAAANSUhEUgAAANIAAADSAgMAAABC93bRAAAACVBMVEUAAGcAAAD////NzL25' \
-  'AAAAAXRSTlMAQObYZgAAAFtJREFUaN7t2SEOACEMRcEa7ofh/ldBsJJAS1bO86Ob/MZY9ViN' \
-  'TD0oiqIo6qrOURRFUVRepQ4TRVEURdXVV6MoiqKoV2UJpCiKov7+p1AURVFUWZWiKIqiqI2a' \
-  '8O8qJ0n+GP4AAAAASUVORK5CYII='
+    'iVBORw0KGgoAAAANSUhEUgAAANIAAADSAgMAAABC93bRAAAACVBMVEUAAGcAAAD////NzL25' \
+    'AAAAAXRSTlMAQObYZgAAAFtJREFUaN7t2SEOACEMRcEa7ofh/ldBsJJAS1bO86Ob/MZY9ViN' \
+    'TD0oiqIo6qrOURRFUVRepQ4TRVEURdXVV6MoiqKoV2UJpCiKov7+p1AURVFUWZWiKIqiqI2a' \
+    '8O8qJ0n+GP4AAAAASUVORK5CYII='
+
 
 def _filehash(fd: int, hashtype: str) -> bytes:
-  h = hashlib.new(hashtype)
-  blocksize = 65536
-  buf = os.read(fd, blocksize)
-  while buf:
-    h.update(buf)
+    h = hashlib.new(hashtype)
+    blocksize = 65536
     buf = os.read(fd, blocksize)
-  return h.digest()
+    while buf:
+        h.update(buf)
+        buf = os.read(fd, blocksize)
+    return h.digest()

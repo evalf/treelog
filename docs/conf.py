@@ -4,7 +4,8 @@
 # list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
 
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
