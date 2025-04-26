@@ -39,9 +39,9 @@ class RichOutputLog(ContextLog):
         sys.stdout.flush()
         self._current = _current
 
-    def write(self, text: str, level: Level) -> None:
+    def write(self, msg, level: Level) -> None:
         sys.stdout.write(
-            ''.join([self._cmap[level.value], text, '\033[0m\n', self._current]))
+            ''.join([self._cmap[level.value], str(msg), '\033[0m\n', self._current]))
 
 
 def first(items: typing.Iterable[bool]) -> int:

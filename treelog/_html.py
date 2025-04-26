@@ -9,7 +9,7 @@ import urllib.parse
 import warnings
 
 from ._io import directory, sequence
-from .proto import Level
+from .proto import Level, Data
 
 
 class HtmlLog:
@@ -55,36 +55,23 @@ class HtmlLog:
         self.popcontext()
         self.pushcontext(title)
 
-    def write(self, text: str, level: Level, escape: bool = True) -> None:
+    def write(self, msg, level: Level) -> None:
         for c in self._unopened:
             print('<div class="context"><div class="title">{}</div><div class="children">'.format(
                 html.escape(c)), file=self._file)
         self._unopened.clear()
-        if escape:
-            text = html.escape(text)
-        print('<div class="item" data-loglevel="{}">{}</div>'.format(level.value,
-              text), file=self._file, flush=True)
-
-    @contextlib.contextmanager
-    def open(self, filename: str, mode: str, level: Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
-        base, ext = os.path.splitext(filename)
-        f, name = self._dir.openrandom(mode)
-        try:
-            with f:
-                yield f
-                f.seek(0)
-                realname = _filehash(f.fileno(), 'sha1').hex() + ext
-        except:
-            self._dir.unlink(name)
-            raise
-        try:
-            self._dir.stat(realname)
-        except FileNotFoundError:
-            self._dir.rename(name, realname)
+        if isinstance(msg, Data):
+            _, ext = os.path.splitext(msg.name)
+            filename = hashlib.sha1(msg.data).hexdigest() + ext
+            try:
+                with self._dir.open(filename, 'wb') as f:
+                    f.write(msg.data)
+            except FileExistsError:
+                pass
+            text = '<a href="{href}" download="{name}">{name}</a>'.format(href=urllib.parse.quote(filename), name=html.escape(msg.name))
         else:
-            self._dir.unlink(name)
-        self.write('<a href="{href}" download="{name}">{name}</a>'.format(
-            href=urllib.parse.quote(realname), name=html.escape(filename)), level, escape=False)
+            text = html.escape(msg)
+        print('<div class="item" data-loglevel="{}">{}</div>'.format(level.value, text), file=self._file, flush=True)
 
     def close(self) -> bool:
         if hasattr(self, '_file') and not self._file.closed:
@@ -777,13 +764,3 @@ FAVICON = 'data:image/png;base64,' \
     'AAAAAXRSTlMAQObYZgAAAFtJREFUaN7t2SEOACEMRcEa7ofh/ldBsJJAS1bO86Ob/MZY9ViN' \
     'TD0oiqIo6qrOURRFUVRepQ4TRVEURdXVV6MoiqKoV2UJpCiKov7+p1AURVFUWZWiKIqiqI2a' \
     '8O8qJ0n+GP4AAAAASUVORK5CYII='
-
-
-def _filehash(fd: int, hashtype: str) -> bytes:
-    h = hashlib.new(hashtype)
-    blocksize = 65536
-    buf = os.read(fd, blocksize)
-    while buf:
-        h.update(buf)
-        buf = os.read(fd, blocksize)
-    return h.digest()

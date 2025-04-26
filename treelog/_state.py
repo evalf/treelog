@@ -1,5 +1,7 @@
 import contextlib
 import functools
+import io
+import tempfile
 import typing
 
 from ._data import DataLog
@@ -7,7 +9,7 @@ from ._stdout import StdoutLog
 from ._tee import TeeLog
 from ._filter import FilterLog
 from ._null import NullLog
-from .proto import Level, Log
+from .proto import Level, Log, Data
 
 current = FilterLog(TeeLog(StdoutLog(), DataLog()), minlevel=Level.info)
 
@@ -91,19 +93,8 @@ class Print:
         '''
         current.write(sep.join(map(str, args)), self._level)
 
-    @typing.overload
-    def open(self, name: str, mode: typing.Literal['w']
-             ) -> typing.ContextManager[typing.IO[str]]: ...
-
-    @typing.overload
-    def open(self, name: str, mode: typing.Literal['wb']
-             ) -> typing.ContextManager[typing.IO[bytes]]: ...
-
-    @typing.overload
-    def open(self, name: str,
-             mode: str) -> typing.ContextManager[typing.IO[typing.Any]]: ...
-
-    def open(self, name: str, mode: str) -> typing.ContextManager[typing.IO[typing.Any]]:
+    @contextlib.contextmanager
+    def open(self, name: str, mode: str):
         '''Open file in logger-controlled directory.
 
         Args
@@ -112,7 +103,16 @@ class Print:
         mode : :class:`str`
             Should be either ``'w'`` (text) or ``'wb'`` (binary data).
         '''
-        if mode not in ('w', 'wb'):
-            raise ValueError(
-                "expected mode 'w' or 'wb' but got {!r}".format(mode))
-        return current.open(name, mode, self._level)
+
+        if mode == 'wb':
+            binary = True
+        elif mode == 'w':
+            binary = False
+        else:
+            raise ValueError(f'invalid mode {mode!r}')
+        logger = current
+        with tempfile.TemporaryFile() as f, context(name):
+            yield f if binary else io.TextIOWrapper(f, write_through=True)
+            f.seek(0)
+            data = f.read()
+        logger.write(Data(name, data), self._level)

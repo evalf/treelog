@@ -93,7 +93,7 @@ class StdoutLog(Log):
                          'my context > iter 3 > c\n'
                          'my context > multiple..\n'
                          '  ..lines\n'
-                         'my context > generating\n'
+                         'my context > test.dat > generating\n'
                          'my context > test.dat\n'
                          'generate_test > test.dat\n'
                          'context step=0 > foo\n'
@@ -119,7 +119,7 @@ class StderrLog(Log):
                          'my context > iter 3 > c\n'
                          'my context > multiple..\n'
                          '  ..lines\n'
-                         'my context > generating\n'
+                         'my context > test.dat > generating\n'
                          'my context > test.dat\n'
                          'generate_test > test.dat\n'
                          'context step=0 > foo\n'
@@ -139,10 +139,12 @@ class RichOutputLog(Log):
             yield treelog.RichOutputLog()
         self.assertEqual(captured.stdout,
                          '\x1b[1;34mmy message\x1b[0m\n'
+                         'test.dat > '
+                         '\r\x1b[K'
                          '\x1b[1mtest.dat\x1b[0m\n'
                          'my context > '
-                         'iter 0 > '
-                         '\x1b[4D1 > '
+                         'iter 0 '
+                         '> \x1b[4D1 > '
                          '\x1b[1ma\x1b[0m\nmy context > iter 1 > '
                          '\x1b[4D2 > '
                          '\x1b[1mb\x1b[0m\nmy context > iter 2 > '
@@ -151,11 +153,12 @@ class RichOutputLog(Log):
                          '\x1b[9D\x1b[K'
                          'empty > '
                          '\x1b[8D\x1b[K'
-                         '\x1b[1;31mmultiple..\n  ..lines\x1b[0m\nmy context > '
-                         '\x1b[1mgenerating\x1b[0m\nmy context > '
+                         '\x1b[1;31mmultiple..\n  ..lines\x1b[0m\nmy context > test.dat > '
+                         '\x1b[1mgenerating\x1b[0m\nmy context > test.dat > '
+                         '\x1b[11D\x1b[K'
                          '\x1b[1;34mtest.dat\x1b[0m\nmy context > '
-                         '\r\x1b[K'
-                         'generate_test > '
+                         '\r\x1b[Kgenerate_test > test.dat > '
+                         '\x1b[11D\x1b[K'
                          '\x1b[1;35mtest.dat\x1b[0m\ngenerate_test > '
                          '\r\x1b[K'
                          'context step=0 > '
@@ -165,7 +168,11 @@ class RichOutputLog(Log):
                          '\x1b[1mbar\x1b[0m\n'
                          'context step=1 > '
                          '\r\x1b[K'
+                         'same.dat > '
+                         '\r\x1b[K'
                          '\x1b[1;31msame.dat\x1b[0m\n'
+                         'dbg.dat > '
+                         '\r\x1b[K'
                          '\x1b[1;30mdbg.dat\x1b[0m\n'
                          '\x1b[1;30mdbg\x1b[0m\n'
                          '\x1b[1;35mwarn\x1b[0m\n')
@@ -198,19 +205,9 @@ class DataLog(Log):
             log = treelog.DataLog(outdira)
             os.rename(outdira, outdirb)
             os.mkdir(outdira)
-            with log.open('dat', 'wb', level=1) as f:
-                pass
+            log.write(treelog.proto.Data('dat', b''), level=1)
             self.assertEqual(os.listdir(outdirb), ['dat'])
             self.assertEqual(os.listdir(outdira), [])
-
-    def test_remove_on_failure(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            log = treelog.DataLog(tmpdir)
-            with self.assertRaises(RuntimeError):
-                with log.open('dat', 'wb', level=1) as f:
-                    f.write(b'test')
-                    raise RuntimeError
-            self.assertFalse(os.listdir(tmpdir))
 
 
 class HtmlLog(Log):
@@ -245,7 +242,9 @@ class HtmlLog(Log):
                 '</div><div class="end"></div></div>\n',
                 '<div class="item" data-loglevel="4">multiple..\n',
                 '  ..lines</div>\n',
+                '<div class="context"><div class="title">test.dat</div><div class="children">\n',
                 '<div class="item" data-loglevel="1">generating</div>\n',
+                '</div><div class="end"></div></div>\n',
                 '<div class="item" data-loglevel="2"><a href="109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat" download="test.dat">test.dat</a></div>\n',
                 '</div><div class="end"></div></div>\n',
                 '<div class="context"><div class="title">generate_test</div><div class="children">\n',
@@ -276,18 +275,9 @@ class HtmlLog(Log):
             with silent(), treelog.HtmlLog(outdira) as log:
                 os.rename(outdira, outdirb)
                 os.mkdir(outdira)
-                with log.open('dat', 'wb', level=treelog.proto.Level.info) as f:
-                    pass
+                log.write(treelog.proto.Data('dat', b''), treelog.proto.Level.info)
             self.assertIn(
                 'da39a3ee5e6b4b0d3255bfef95601890afd80709', os.listdir(outdirb))
-
-    def test_remove_on_failure(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with silent(), treelog.HtmlLog(tmpdir) as log, self.assertRaises(RuntimeError):
-                with log.open('dat', 'wb', level=treelog.proto.Level.info) as f:
-                    f.write(b'test')
-                    raise RuntimeError
-            self.assertEqual(len(os.listdir(tmpdir)), 3)
 
     def test_filename_sequence(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -310,8 +300,9 @@ class RecordLog(Log):
         yield recordlog
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', treelog.proto.Level.user),
-            ('open', 0, 'test.dat', 'w', treelog.proto.Level.info),
-            ('close', 0, 'test1'),
+            ('pushcontext', 'test.dat'),
+            ('popcontext',),
+            ('write', treelog.proto.Data('test.dat', b'test1'), treelog.proto.Level.info),
             ('pushcontext', 'my context'),
             ('pushcontext', 'iter 0'),
             ('recontext', 'iter 1'),
@@ -324,23 +315,27 @@ class RecordLog(Log):
             ('pushcontext', 'empty'),
             ('popcontext',),
             ('write', 'multiple..\n  ..lines', treelog.proto.Level.error),
-            ('open', 1, 'test.dat', 'wb', treelog.proto.Level.user),
+            ('pushcontext', 'test.dat'),
             ('write', 'generating', treelog.proto.Level.info),
-            ('close', 1, b'test2'),
+            ('popcontext',),
+            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
             ('popcontext',),
             ('pushcontext', 'generate_test'),
-            ('open', 2, 'test.dat', 'wb', treelog.proto.Level.warning),
-            ('close', 2, b'test3'),
+            ('pushcontext', 'test.dat'),
+            ('popcontext',),
+            ('write', treelog.proto.Data('test.dat', b'test3'), treelog.proto.Level.warning),
             ('popcontext',),
             ('pushcontext', 'context step=0'),
             ('write', 'foo', treelog.proto.Level.info),
             ('recontext', 'context step=1'),
             ('write', 'bar', treelog.proto.Level.info),
             ('popcontext',),
-            ('open', 3, 'same.dat', 'wb', treelog.proto.Level.error),
-            ('close', 3, b'test3'),
-            ('open', 4, 'dbg.dat', 'wb', treelog.proto.Level.debug),
-            ('close', 4, b'test4'),
+            ('pushcontext', 'same.dat'),
+            ('popcontext',),
+            ('write', treelog.proto.Data('same.dat', b'test3'), treelog.proto.Level.error),
+            ('pushcontext', 'dbg.dat'),
+            ('popcontext',),
+            ('write', treelog.proto.Data('dbg.dat', b'test4'), treelog.proto.Level.debug),
             ('write', 'dbg', treelog.proto.Level.debug),
             ('write', 'warn', treelog.proto.Level.warning)])
         for Log in StdoutLog, DataLog, HtmlLog, RichOutputLog:
@@ -362,8 +357,7 @@ class SimplifiedRecordLog(Log):
         yield recordlog
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', treelog.proto.Level.user),
-            ('open', 0, 'test.dat', 'w', treelog.proto.Level.info),
-            ('close', 0, 'test1'),
+            ('write', treelog.proto.Data('test.dat', b'test1'), treelog.proto.Level.info),
             ('pushcontext', 'my context'),
             ('pushcontext', 'iter 1'),
             ('write', 'a', treelog.proto.Level.info),
@@ -373,21 +367,19 @@ class SimplifiedRecordLog(Log):
             ('write', 'c', treelog.proto.Level.info),
             ('popcontext',),
             ('write', 'multiple..\n  ..lines', treelog.proto.Level.error),
-            ('open', 1, 'test.dat', 'wb', treelog.proto.Level.user),
+            ('pushcontext', 'test.dat'),
             ('write', 'generating', treelog.proto.Level.info),
-            ('close', 1, b'test2'),
+            ('popcontext',),
+            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
             ('recontext', 'generate_test'),
-            ('open', 2, 'test.dat', 'wb', treelog.proto.Level.warning),
-            ('close', 2, b'test3'),
+            ('write', treelog.proto.Data('test.dat', b'test3'), treelog.proto.Level.warning),
             ('recontext', 'context step=0'),
             ('write', 'foo', treelog.proto.Level.info),
             ('recontext', 'context step=1'),
             ('write', 'bar', treelog.proto.Level.info),
             ('popcontext',),
-            ('open', 3, 'same.dat', 'wb', treelog.proto.Level.error),
-            ('close', 3, b'test3'),
-            ('open', 4, 'dbg.dat', 'wb', treelog.proto.Level.debug),
-            ('close', 4, b'test4'),
+            ('write', treelog.proto.Data('same.dat', b'test3'), treelog.proto.Level.error),
+            ('write', treelog.proto.Data('dbg.dat', b'test4'), treelog.proto.Level.debug),
             ('write', 'dbg', treelog.proto.Level.debug),
             ('write', 'warn', treelog.proto.Level.warning)])
         for Log in StdoutLog, DataLog, HtmlLog:
@@ -439,91 +431,11 @@ class TeeLog(Log):
                 RichOutputLog.output_tester(self) as richoutputlog:
             yield treelog.TeeLog(richoutputlog, treelog.TeeLog(datalog, recordlog))
 
-    def test_open_devnull_devnull(self):
-        teelog = treelog.TeeLog(treelog.StdoutLog(), treelog.StdoutLog())
-        with silent(), teelog.open('test', 'wb', level=treelog.proto.Level.info) as f:
-            self.assertEqual(f.name, os.devnull)
-
-    def test_open_devnull_rw(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            filenos = set()
-            teelog = treelog.TeeLog(
-                treelog.StdoutLog(), TeeLogTestLog(tmpdir, True, filenos))
-            with silent(), teelog.open('test', 'wb', level=treelog.proto.Level.info) as f:
-                self.assertIn(f.fileno(), filenos)
-                f.write(b'test')
-            with open(os.path.join(tmpdir, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-
-    def test_open_rw_devnull(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            filenos = set()
-            teelog = treelog.TeeLog(TeeLogTestLog(
-                tmpdir, True, filenos), treelog.StdoutLog())
-            with silent(), teelog.open('test', 'wb', level=treelog.proto.Level.info) as f:
-                self.assertIn(f.fileno(), filenos)
-                f.write(b'test')
-            with open(os.path.join(tmpdir, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-
-    def test_open_rw_rw(self):
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
-            filenos = set()
-            teelog = treelog.TeeLog(TeeLogTestLog(
-                tmpdir1, True, filenos), TeeLogTestLog(tmpdir2, True, filenos))
-            with silent(), teelog.open('test', 'wb', level=treelog.proto.Level.info) as f:
-                self.assertIn(f.fileno(), filenos)
-                f.write(b'test')
-            with open(os.path.join(tmpdir1, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-            with open(os.path.join(tmpdir2, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-
-    def test_open_rw_wo(self):
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
-            filenos = set()
-            teelog = treelog.TeeLog(TeeLogTestLog(
-                tmpdir1, True, filenos), TeeLogTestLog(tmpdir2, False, set()))
-            with silent(), teelog.open('test', 'wb', level=treelog.proto.Level.info) as f:
-                self.assertIn(f.fileno(), filenos)
-                f.write(b'test')
-            with open(os.path.join(tmpdir1, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-            with open(os.path.join(tmpdir2, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-
-    def test_open_wo_rw(self):
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
-            filenos = set()
-            teelog = treelog.TeeLog(TeeLogTestLog(
-                tmpdir1, False, set()), TeeLogTestLog(tmpdir2, True, filenos))
-            with silent(), teelog.open('test', 'wb', level=treelog.proto.Level.info) as f:
-                self.assertIn(f.fileno(), filenos)
-                f.write(b'test')
-            with open(os.path.join(tmpdir1, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-            with open(os.path.join(tmpdir2, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-
-    def test_open_wo_wo(self):
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
-            filenos = set()
-            teelog = treelog.TeeLog(TeeLogTestLog(
-                tmpdir1, False, filenos), TeeLogTestLog(tmpdir2, False, filenos))
-            with silent(), teelog.open('test', 'wb', level=treelog.proto.Level.info) as f:
-                self.assertNotIn(f.fileno(), filenos)
-                f.write(b'test')
-            with open(os.path.join(tmpdir1, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-            with open(os.path.join(tmpdir2, 'test'), 'rb') as f:
-                self.assertEqual(f.read(), b'test')
-
     def test_open_datalog_datalog_samedir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             teelog = treelog.TeeLog(treelog.DataLog(
                 tmpdir), treelog.DataLog(tmpdir))
-            with teelog.open('test', 'wb', level=treelog.proto.Level.info) as f:
-                f.write(b'test')
+            teelog.write(treelog.proto.Data('test', b'test'), treelog.proto.Level.info)
             with open(os.path.join(tmpdir, 'test'), 'rb') as f:
                 self.assertEqual(f.read(), b'test')
             with open(os.path.join(tmpdir, 'test-1'), 'rb') as f:
@@ -540,14 +452,11 @@ class FilterMinLog(Log):
             ('write', 'my message', treelog.proto.Level.user),
             ('pushcontext', 'my context'),
             ('write', 'multiple..\n  ..lines', treelog.proto.Level.error),
-            ('open', 0, 'test.dat', 'wb', treelog.proto.Level.user),
-            ('close', 0, b'test2'),
+            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
             ('recontext', 'generate_test'),
-            ('open', 1, 'test.dat', 'wb', treelog.proto.Level.warning),
-            ('close', 1, b'test3'),
+            ('write', treelog.proto.Data('test.dat', b'test3'), treelog.proto.Level.warning),
             ('popcontext',),
-            ('open', 2, 'same.dat', 'wb', treelog.proto.Level.error),
-            ('close', 2, b'test3'),
+            ('write', treelog.proto.Data('same.dat', b'test3'), treelog.proto.Level.error),
             ('write', 'warn', treelog.proto.Level.warning)])
 
 
@@ -559,8 +468,7 @@ class FilterMaxLog(Log):
         yield treelog.FilterLog(recordlog, maxlevel=treelog.proto.Level.user)
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', treelog.proto.Level.user),
-            ('open', 0, 'test.dat', 'w', treelog.proto.Level.info),
-            ('close', 0, 'test1'),
+            ('write', treelog.proto.Data('test.dat', b'test1'), treelog.proto.Level.info),
             ('pushcontext', 'my context'),
             ('pushcontext', 'iter 1'),
             ('write', 'a', treelog.proto.Level.info),
@@ -568,17 +476,16 @@ class FilterMaxLog(Log):
             ('write', 'b', treelog.proto.Level.info),
             ('recontext', 'iter 3'),
             ('write', 'c', treelog.proto.Level.info),
-            ('popcontext',),
-            ('open', 1, 'test.dat', 'wb', treelog.proto.Level.user),
+            ('recontext', 'test.dat'),
             ('write', 'generating', treelog.proto.Level.info),
-            ('close', 1, b'test2'),
+            ('popcontext',),
+            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
             ('recontext', 'context step=0'),
             ('write', 'foo', treelog.proto.Level.info),
             ('recontext', 'context step=1'),
             ('write', 'bar', treelog.proto.Level.info),
             ('popcontext',),
-            ('open', 2, 'dbg.dat', 'wb', treelog.proto.Level.debug),
-            ('close', 2, b'test4'),
+            ('write', treelog.proto.Data('dbg.dat', b'test4'), treelog.proto.Level.debug),
             ('write', 'dbg', treelog.proto.Level.debug)])
 
 
@@ -590,8 +497,7 @@ class FilterMinMaxLog(Log):
         yield treelog.FilterLog(recordlog, minlevel=treelog.proto.Level.info, maxlevel=treelog.proto.Level.warning)
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', treelog.proto.Level.user),
-            ('open', 0, 'test.dat', 'w', treelog.proto.Level.info),
-            ('close', 0, 'test1'),
+            ('write', treelog.proto.Data('test.dat', b'test1'), treelog.proto.Level.info),
             ('pushcontext', 'my context'),
             ('pushcontext', 'iter 1'),
             ('write', 'a', treelog.proto.Level.info),
@@ -599,13 +505,12 @@ class FilterMinMaxLog(Log):
             ('write', 'b', treelog.proto.Level.info),
             ('recontext', 'iter 3'),
             ('write', 'c', treelog.proto.Level.info),
-            ('popcontext',),
-            ('open', 1, 'test.dat', 'wb', treelog.proto.Level.user),
+            ('recontext', 'test.dat'),
             ('write', 'generating', treelog.proto.Level.info),
-            ('close', 1, b'test2'),
+            ('popcontext',),
+            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
             ('recontext', 'generate_test'),
-            ('open', 2, 'test.dat', 'wb', treelog.proto.Level.warning),
-            ('close', 2, b'test3'),
+            ('write', treelog.proto.Data('test.dat', b'test3'), treelog.proto.Level.warning),
             ('recontext', 'context step=0'),
             ('write', 'foo', treelog.proto.Level.info),
             ('recontext', 'context step=1'),
@@ -627,7 +532,7 @@ class LoggingLog(Log):
             'INFO:nutils:my context > iter 2 > b',
             'INFO:nutils:my context > iter 3 > c',
             'ERROR:nutils:my context > multiple..\n  ..lines',
-            'INFO:nutils:my context > generating',
+            'INFO:nutils:my context > test.dat > generating',
             'Level 25:nutils:my context > test.dat',
             'WARNING:nutils:generate_test > test.dat',
             'INFO:nutils:context step=0 > foo',
