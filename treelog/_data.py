@@ -2,7 +2,7 @@ import functools
 import os
 import typing
 
-from ._io import sequence, directory
+from ._path import makedirs, sequence
 from .proto import Level, Data
 
 
@@ -11,7 +11,7 @@ class DataLog:
 
     def __init__(self, dirpath: str = os.curdir, names: typing.Callable[[str], typing.Iterable[str]] = sequence) -> None:
         self._names = functools.lru_cache(maxsize=32)(names)
-        self._dir = directory(dirpath)
+        self._path = makedirs(dirpath)
 
     def pushcontext(self, title: str) -> None:
         pass
@@ -24,5 +24,13 @@ class DataLog:
 
     def write(self, msg, level: Level) -> None:
         if isinstance(msg, Data):
-            f, name = self._dir.openfirstunused(self._names(msg.name), 'wb')
-            f.write(msg.data)
+            for filename in self._names(msg.name):
+                try:
+                    f = (self._path / filename).open('xb')
+                except FileExistsError:
+                    continue
+                break
+            else:
+                raise ValueError('all filenames are in use')
+            with f:
+                f.write(msg.data)

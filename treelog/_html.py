@@ -8,7 +8,7 @@ import typing
 import urllib.parse
 import warnings
 
-from ._io import directory, sequence
+from ._path import makedirs, sequence
 from .proto import Level, Data
 
 
@@ -16,9 +16,15 @@ class HtmlLog:
     '''Output html nested lists.'''
 
     def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
-        self._dir = directory(dirpath)
-        self._file, self.filename = self._dir.openfirstunused(
-            sequence(filename), 'w', encoding='utf-8')
+        self._path = makedirs(dirpath)
+        for self.filename in sequence(filename):
+            try:
+                self._file = (self._path / self.filename).open('x', encoding='utf-8')
+            except FileExistsError:
+                continue
+            break
+        else:
+            raise ValueError('all filenames are in use')
         css = self._write_hash(CSS.encode(), '.css')
         js = self._write_hash(JS.encode(), '.js')
         if title is None:
@@ -79,7 +85,7 @@ class HtmlLog:
     def _write_hash(self, data, ext):
         filename = hashlib.sha1(data).hexdigest() + ext
         try:
-            with self._dir.open(filename, 'wb') as f:
+            with (self._path / filename).open('xb') as f:
                 f.write(data)
         except FileExistsError:
             pass

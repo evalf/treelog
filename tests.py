@@ -19,7 +19,7 @@
 # THE SOFTWARE.
 
 import treelog
-import treelog._io
+import treelog._path
 import treelog._state
 import unittest
 import contextlib
@@ -197,7 +197,7 @@ class DataLog(Log):
             with open(os.path.join(tmpdir, 'dbg.dat'), 'r') as f:
                 self.assertEqual(f.read(), 'test4')
 
-    @unittest.skipIf(not treelog._io.supports_fd, 'dir_fd not supported on platform')
+    @unittest.skipIf(not treelog._path.supports_fd, 'dir_fd not supported on platform')
     def test_move_outdir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outdira = os.path.join(tmpdir, 'a')
@@ -267,7 +267,7 @@ class HtmlLog(Log):
                 with open(os.path.join(tmpdir, test), 'rb') as f:
                     self.assertEqual(f.read(), b'test%i' % i)
 
-    @unittest.skipIf(not treelog._io.supports_fd, 'dir_fd not supported on platform')
+    @unittest.skipIf(not treelog._path.supports_fd, 'dir_fd not supported on platform')
     def test_move_outdir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outdira = os.path.join(tmpdir, 'a')
