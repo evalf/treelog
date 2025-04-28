@@ -19,18 +19,8 @@ class HtmlLog:
         self._dir = directory(dirpath)
         self._file, self.filename = self._dir.openfirstunused(
             sequence(filename), 'w', encoding='utf-8')
-        css = hashlib.sha1(CSS.encode()).hexdigest() + '.css'
-        try:
-            with self._dir.open(css, 'w') as f:
-                f.write(CSS)
-        except FileExistsError:
-            pass
-        js = hashlib.sha1(JS.encode()).hexdigest() + '.js'
-        try:
-            with self._dir.open(js, 'w') as f:
-                f.write(JS)
-        except FileExistsError:
-            pass
+        css = self._write_hash(CSS.encode(), '.css')
+        js = self._write_hash(JS.encode(), '.js')
         if title is None:
             title = ' '.join(sys.argv)
         if htmltitle is None:
@@ -62,12 +52,7 @@ class HtmlLog:
         self._unopened.clear()
         if isinstance(msg, Data):
             _, ext = os.path.splitext(msg.name)
-            filename = hashlib.sha1(msg.data).hexdigest() + ext
-            try:
-                with self._dir.open(filename, 'wb') as f:
-                    f.write(msg.data)
-            except FileExistsError:
-                pass
+            filename = self._write_hash(msg.data, ext)
             text = '<a href="{href}" download="{name}">{name}</a>'.format(href=urllib.parse.quote(filename), name=html.escape(msg.name))
         else:
             text = html.escape(msg)
@@ -90,6 +75,15 @@ class HtmlLog:
     def __del__(self) -> None:
         if self.close():
             warnings.warn('unclosed object {!r}'.format(self), ResourceWarning)
+
+    def _write_hash(self, data, ext):
+        filename = hashlib.sha1(data).hexdigest() + ext
+        try:
+            with self._dir.open(filename, 'wb') as f:
+                f.write(data)
+        except FileExistsError:
+            pass
+        return filename
 
 
 HTMLHEAD = '''\
