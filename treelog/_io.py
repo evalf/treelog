@@ -78,21 +78,3 @@ def randomnames(characters: str = 'abcdefghijklmnopqrstuvwxyz0123456789_', lengt
     rng = random.Random()
     while True:
         yield ''.join(rng.choice(characters) for dummy in range(length))
-
-
-def set_ansi_console() -> None:
-    if sys.platform == "win32":
-        import platform
-        if platform.version() < '10.':
-            raise RuntimeError(
-                'ANSI console mode requires Windows 10 or higher, detected {}'.format(platform.version()))
-        import ctypes
-        # https://docs.microsoft.com/en-us/windows/console/getstdhandle
-        handle = ctypes.windll.kernel32.GetStdHandle(-11)
-        # https://docs.microsoft.com/en-us/windows/desktop/WinProg/windows-data-types#lpdword
-        mode = ctypes.c_uint32()
-        # https://docs.microsoft.com/en-us/windows/console/getconsolemode
-        ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode))
-        mode.value |= 4  # add ENABLE_VIRTUAL_TERMINAL_PROCESSING
-        # https://docs.microsoft.com/en-us/windows/console/setconsolemode
-        ctypes.windll.kernel32.SetConsoleMode(handle, mode)
