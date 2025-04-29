@@ -41,6 +41,13 @@ _log_file_funcs = {
     'warningfile',
     'errorfile',
 }
+_log_data_funcs = {
+    'debugdata',
+    'infodata',
+    'userdata',
+    'warningdata',
+    'errordata',
+}
 _legacy = {
     'version': __version__,
     'Log': None,
@@ -54,6 +61,7 @@ def __dir__():
         *_log_objs,
         *_log_funcs,
         *_log_file_funcs,
+        *_log_data_funcs,
         *_legacy,
     )
 
@@ -67,6 +75,9 @@ def __getattr__(attr):
     elif attr in _log_file_funcs:
         _state = import_module(f'._state', 'treelog')
         obj = _state.Print(getattr(_state.Level, attr[:-4])).open
+    elif attr in _log_data_funcs:
+        _state = import_module(f'._state', 'treelog')
+        obj = _state.Print(getattr(_state.Level, attr[:-4])).data
     elif attr in _log_objs:
         m = import_module(f'._{attr[:-3].lower()}', 'treelog')
         obj = getattr(m, attr)

@@ -115,4 +115,7 @@ class Print:
             yield f if binary else io.TextIOWrapper(f, write_through=True)
             f.seek(0)
             data = f.read()
-        logger.write(Data(name, data, type), self._level)
+        current.write(Data(name, data, type), self._level)
+
+    def data(self, name: str, data: bytes, type: typing.Optional[str] = None):
+        current.write(Data(name, data, type), self._level)

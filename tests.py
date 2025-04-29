@@ -68,8 +68,7 @@ class Log(unittest.TestCase):
             treelog.info('foo')
             format(1)
             treelog.info('bar')
-        with treelog.errorfile('same.dat', 'wb') as f:
-            f.write(b'test3')
+        treelog.errordata('same.dat', b'test3')
         with treelog.debugfile('dbg.jpg', 'wb', type='image/jpg') as f:
             f.write(b'test4')
         treelog.debug('dbg')
@@ -168,8 +167,6 @@ class RichOutputLog(Log):
                          '\x1b[4D1 > '
                          '\x1b[1mbar\x1b[0m\n'
                          'context step=1 > '
-                         '\r\x1b[K'
-                         'same.dat > '
                          '\r\x1b[K'
                          '\x1b[1;31msame.dat [5 bytes]\x1b[0m\n'
                          'dbg.jpg > '
@@ -330,8 +327,6 @@ class RecordLog(Log):
             ('write', 'foo', Level.info),
             ('recontext', 'context step=1'),
             ('write', 'bar', Level.info),
-            ('popcontext',),
-            ('pushcontext', 'same.dat'),
             ('popcontext',),
             ('write', Data('same.dat', b'test3'), Level.error),
             ('pushcontext', 'dbg.jpg'),
