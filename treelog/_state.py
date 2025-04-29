@@ -76,46 +76,56 @@ def withcontext(f: typing.Callable[..., T]) -> typing.Callable[..., T]:
     return wrapped
 
 
-class Print:
+def write(level: Level, *args: typing.Any, sep: str = ' ') -> None:
+    '''Write message to log.
 
-    def __init__(self, level: Level) -> None:
-        self._level = level  # type: typing.Final[Level]
+    Args
+    ----
+    *args : tuple of :class:`str`
+        Values to be printed to the log.
+    sep : :class:`str`
+        String inserted between values, default a space.
+    '''
+    current.write(sep.join(map(str, args)), level)
 
-    def __call__(self, *args: typing.Any, sep: str = ' ') -> None:
-        '''Write message to log.
 
-        Args
-        ----
-        *args : tuple of :class:`str`
-            Values to be printed to the log.
-        sep : :class:`str`
-            String inserted between values, default a space.
-        '''
-        current.write(sep.join(map(str, args)), self._level)
+@contextlib.contextmanager
+def file(level: Level, name: str, mode: str, type: typing.Optional[str] = None):
+    '''Open file in logger-controlled directory.
 
-    @contextlib.contextmanager
-    def open(self, name: str, mode: str, type: typing.Optional[str] = None):
-        '''Open file in logger-controlled directory.
+    Args
+    ----
+    filename : :class:`str`
+    mode : :class:`str`
+        Should be either ``'w'`` (text) or ``'wb'`` (binary data).
+    '''
 
-        Args
-        ----
-        filename : :class:`str`
-        mode : :class:`str`
-            Should be either ``'w'`` (text) or ``'wb'`` (binary data).
-        '''
+    if mode == 'wb':
+        binary = True
+    elif mode == 'w':
+        binary = False
+    else:
+        raise ValueError(f'invalid mode {mode!r}')
+    logger = current
+    with tempfile.TemporaryFile() as f, context(name):
+        yield f if binary else io.TextIOWrapper(f, write_through=True)
+        f.seek(0)
+        data = f.read()
+    current.write(Data(name, data, type), level)
 
-        if mode == 'wb':
-            binary = True
-        elif mode == 'w':
-            binary = False
-        else:
-            raise ValueError(f'invalid mode {mode!r}')
-        logger = current
-        with tempfile.TemporaryFile() as f, context(name):
-            yield f if binary else io.TextIOWrapper(f, write_through=True)
-            f.seek(0)
-            data = f.read()
-        current.write(Data(name, data, type), self._level)
 
-    def data(self, name: str, data: bytes, type: typing.Optional[str] = None):
-        current.write(Data(name, data, type), self._level)
+def data(level: Level, name: str, data: bytes, type: typing.Optional[str] = None):
+    current.write(Data(name, data, type), level)
+
+
+def partial(attr):
+    if attr.endswith('file'):
+        f = file
+        level = attr[:-4]
+    elif attr.endswith('data'):
+        f = data
+        level = attr[:-4]
+    else:
+        f = write
+        level = attr
+    return functools.partial(f, getattr(Level, level))
