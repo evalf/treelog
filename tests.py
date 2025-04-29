@@ -19,8 +19,6 @@
 # THE SOFTWARE.
 
 import treelog
-import treelog._path
-import treelog._state
 import unittest
 import contextlib
 import tempfile
@@ -31,6 +29,9 @@ import io
 import warnings
 import gc
 import doctest
+
+from treelog import _path, _state
+from treelog.proto import Level, Data
 
 
 class Log(unittest.TestCase):
@@ -197,7 +198,7 @@ class DataLog(Log):
             with open(os.path.join(tmpdir, 'dbg.dat'), 'r') as f:
                 self.assertEqual(f.read(), 'test4')
 
-    @unittest.skipIf(not treelog._path.supports_fd, 'dir_fd not supported on platform')
+    @unittest.skipIf(not _path.supports_fd, 'dir_fd not supported on platform')
     def test_move_outdir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outdira = os.path.join(tmpdir, 'a')
@@ -205,7 +206,7 @@ class DataLog(Log):
             log = treelog.DataLog(outdira)
             os.rename(outdira, outdirb)
             os.mkdir(outdira)
-            log.write(treelog.proto.Data('dat', b''), level=1)
+            log.write(Data('dat', b''), level=1)
             self.assertEqual(os.listdir(outdirb), ['dat'])
             self.assertEqual(os.listdir(outdira), [])
 
@@ -267,7 +268,7 @@ class HtmlLog(Log):
                 with open(os.path.join(tmpdir, test), 'rb') as f:
                     self.assertEqual(f.read(), b'test%i' % i)
 
-    @unittest.skipIf(not treelog._path.supports_fd, 'dir_fd not supported on platform')
+    @unittest.skipIf(not _path.supports_fd, 'dir_fd not supported on platform')
     def test_move_outdir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outdira = os.path.join(tmpdir, 'a')
@@ -275,7 +276,7 @@ class HtmlLog(Log):
             with silent(), treelog.HtmlLog(outdira) as log:
                 os.rename(outdira, outdirb)
                 os.mkdir(outdira)
-                log.write(treelog.proto.Data('dat', b''), treelog.proto.Level.info)
+                log.write(Data('dat', b''), Level.info)
             self.assertIn(
                 'da39a3ee5e6b4b0d3255bfef95601890afd80709', os.listdir(outdirb))
 
@@ -299,52 +300,52 @@ class RecordLog(Log):
         recordlog = treelog.RecordLog(simplify=False)
         yield recordlog
         self.assertEqual(recordlog._messages, [
-            ('write', 'my message', treelog.proto.Level.user),
+            ('write', 'my message', Level.user),
             ('pushcontext', 'test.dat'),
             ('popcontext',),
-            ('write', treelog.proto.Data('test.dat', b'test1'), treelog.proto.Level.info),
+            ('write', Data('test.dat', b'test1'), Level.info),
             ('pushcontext', 'my context'),
             ('pushcontext', 'iter 0'),
             ('recontext', 'iter 1'),
-            ('write', 'a', treelog.proto.Level.info),
+            ('write', 'a', Level.info),
             ('recontext', 'iter 2'),
-            ('write', 'b', treelog.proto.Level.info),
+            ('write', 'b', Level.info),
             ('recontext', 'iter 3'),
-            ('write', 'c', treelog.proto.Level.info),
+            ('write', 'c', Level.info),
             ('popcontext',),
             ('pushcontext', 'empty'),
             ('popcontext',),
-            ('write', 'multiple..\n  ..lines', treelog.proto.Level.error),
+            ('write', 'multiple..\n  ..lines', Level.error),
             ('pushcontext', 'test.dat'),
-            ('write', 'generating', treelog.proto.Level.info),
+            ('write', 'generating', Level.info),
             ('popcontext',),
-            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
+            ('write', Data('test.dat', b'test2'), Level.user),
             ('popcontext',),
             ('pushcontext', 'generate_test'),
             ('pushcontext', 'test.dat'),
             ('popcontext',),
-            ('write', treelog.proto.Data('test.dat', b'test3'), treelog.proto.Level.warning),
+            ('write', Data('test.dat', b'test3'), Level.warning),
             ('popcontext',),
             ('pushcontext', 'context step=0'),
-            ('write', 'foo', treelog.proto.Level.info),
+            ('write', 'foo', Level.info),
             ('recontext', 'context step=1'),
-            ('write', 'bar', treelog.proto.Level.info),
+            ('write', 'bar', Level.info),
             ('popcontext',),
             ('pushcontext', 'same.dat'),
             ('popcontext',),
-            ('write', treelog.proto.Data('same.dat', b'test3'), treelog.proto.Level.error),
+            ('write', Data('same.dat', b'test3'), Level.error),
             ('pushcontext', 'dbg.dat'),
             ('popcontext',),
-            ('write', treelog.proto.Data('dbg.dat', b'test4'), treelog.proto.Level.debug),
-            ('write', 'dbg', treelog.proto.Level.debug),
-            ('write', 'warn', treelog.proto.Level.warning)])
+            ('write', Data('dbg.dat', b'test4'), Level.debug),
+            ('write', 'dbg', Level.debug),
+            ('write', 'warn', Level.warning)])
         for Log in StdoutLog, DataLog, HtmlLog, RichOutputLog:
             with self.subTest('replay to {}'.format(Log.__name__)), Log.output_tester(self) as log:
                 recordlog.replay(log)
 
     def test_replay_in_current(self):
         recordlog = treelog.RecordLog()
-        recordlog.write('test', level=treelog.proto.Level.info)
+        recordlog.write('test', level=Level.info)
         with self.assertSilent(), treelog.set(treelog.LoggingLog()), self.assertLogs('nutils'):
             recordlog.replay()
 
@@ -356,39 +357,39 @@ class SimplifiedRecordLog(Log):
         recordlog = treelog.RecordLog(simplify=True)
         yield recordlog
         self.assertEqual(recordlog._messages, [
-            ('write', 'my message', treelog.proto.Level.user),
-            ('write', treelog.proto.Data('test.dat', b'test1'), treelog.proto.Level.info),
+            ('write', 'my message', Level.user),
+            ('write', Data('test.dat', b'test1'), Level.info),
             ('pushcontext', 'my context'),
             ('pushcontext', 'iter 1'),
-            ('write', 'a', treelog.proto.Level.info),
+            ('write', 'a', Level.info),
             ('recontext', 'iter 2'),
-            ('write', 'b', treelog.proto.Level.info),
+            ('write', 'b', Level.info),
             ('recontext', 'iter 3'),
-            ('write', 'c', treelog.proto.Level.info),
+            ('write', 'c', Level.info),
             ('popcontext',),
-            ('write', 'multiple..\n  ..lines', treelog.proto.Level.error),
+            ('write', 'multiple..\n  ..lines', Level.error),
             ('pushcontext', 'test.dat'),
-            ('write', 'generating', treelog.proto.Level.info),
+            ('write', 'generating', Level.info),
             ('popcontext',),
-            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
+            ('write', Data('test.dat', b'test2'), Level.user),
             ('recontext', 'generate_test'),
-            ('write', treelog.proto.Data('test.dat', b'test3'), treelog.proto.Level.warning),
+            ('write', Data('test.dat', b'test3'), Level.warning),
             ('recontext', 'context step=0'),
-            ('write', 'foo', treelog.proto.Level.info),
+            ('write', 'foo', Level.info),
             ('recontext', 'context step=1'),
-            ('write', 'bar', treelog.proto.Level.info),
+            ('write', 'bar', Level.info),
             ('popcontext',),
-            ('write', treelog.proto.Data('same.dat', b'test3'), treelog.proto.Level.error),
-            ('write', treelog.proto.Data('dbg.dat', b'test4'), treelog.proto.Level.debug),
-            ('write', 'dbg', treelog.proto.Level.debug),
-            ('write', 'warn', treelog.proto.Level.warning)])
+            ('write', Data('same.dat', b'test3'), Level.error),
+            ('write', Data('dbg.dat', b'test4'), Level.debug),
+            ('write', 'dbg', Level.debug),
+            ('write', 'warn', Level.warning)])
         for Log in StdoutLog, DataLog, HtmlLog:
             with self.subTest('replay to {}'.format(Log.__name__)), Log.output_tester(self) as log:
                 recordlog.replay(log)
 
     def test_replay_in_current(self):
         recordlog = treelog.RecordLog()
-        recordlog.write('test', level=treelog.proto.Level.info)
+        recordlog.write('test', level=Level.info)
         with self.assertSilent(), treelog.set(treelog.LoggingLog()), self.assertLogs('nutils'):
             recordlog.replay()
 
@@ -435,7 +436,7 @@ class TeeLog(Log):
         with tempfile.TemporaryDirectory() as tmpdir:
             teelog = treelog.TeeLog(treelog.DataLog(
                 tmpdir), treelog.DataLog(tmpdir))
-            teelog.write(treelog.proto.Data('test', b'test'), treelog.proto.Level.info)
+            teelog.write(Data('test', b'test'), Level.info)
             with open(os.path.join(tmpdir, 'test'), 'rb') as f:
                 self.assertEqual(f.read(), b'test')
             with open(os.path.join(tmpdir, 'test-1'), 'rb') as f:
@@ -447,17 +448,17 @@ class FilterMinLog(Log):
     @contextlib.contextmanager
     def output_tester(self):
         recordlog = treelog.RecordLog()
-        yield treelog.FilterLog(recordlog, minlevel=treelog.proto.Level.user)
+        yield treelog.FilterLog(recordlog, minlevel=Level.user)
         self.assertEqual(recordlog._messages, [
-            ('write', 'my message', treelog.proto.Level.user),
+            ('write', 'my message', Level.user),
             ('pushcontext', 'my context'),
-            ('write', 'multiple..\n  ..lines', treelog.proto.Level.error),
-            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
+            ('write', 'multiple..\n  ..lines', Level.error),
+            ('write', Data('test.dat', b'test2'), Level.user),
             ('recontext', 'generate_test'),
-            ('write', treelog.proto.Data('test.dat', b'test3'), treelog.proto.Level.warning),
+            ('write', Data('test.dat', b'test3'), Level.warning),
             ('popcontext',),
-            ('write', treelog.proto.Data('same.dat', b'test3'), treelog.proto.Level.error),
-            ('write', 'warn', treelog.proto.Level.warning)])
+            ('write', Data('same.dat', b'test3'), Level.error),
+            ('write', 'warn', Level.warning)])
 
 
 class FilterMaxLog(Log):
@@ -465,28 +466,28 @@ class FilterMaxLog(Log):
     @contextlib.contextmanager
     def output_tester(self):
         recordlog = treelog.RecordLog()
-        yield treelog.FilterLog(recordlog, maxlevel=treelog.proto.Level.user)
+        yield treelog.FilterLog(recordlog, maxlevel=Level.user)
         self.assertEqual(recordlog._messages, [
-            ('write', 'my message', treelog.proto.Level.user),
-            ('write', treelog.proto.Data('test.dat', b'test1'), treelog.proto.Level.info),
+            ('write', 'my message', Level.user),
+            ('write', Data('test.dat', b'test1'), Level.info),
             ('pushcontext', 'my context'),
             ('pushcontext', 'iter 1'),
-            ('write', 'a', treelog.proto.Level.info),
+            ('write', 'a', Level.info),
             ('recontext', 'iter 2'),
-            ('write', 'b', treelog.proto.Level.info),
+            ('write', 'b', Level.info),
             ('recontext', 'iter 3'),
-            ('write', 'c', treelog.proto.Level.info),
+            ('write', 'c', Level.info),
             ('recontext', 'test.dat'),
-            ('write', 'generating', treelog.proto.Level.info),
+            ('write', 'generating', Level.info),
             ('popcontext',),
-            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
+            ('write', Data('test.dat', b'test2'), Level.user),
             ('recontext', 'context step=0'),
-            ('write', 'foo', treelog.proto.Level.info),
+            ('write', 'foo', Level.info),
             ('recontext', 'context step=1'),
-            ('write', 'bar', treelog.proto.Level.info),
+            ('write', 'bar', Level.info),
             ('popcontext',),
-            ('write', treelog.proto.Data('dbg.dat', b'test4'), treelog.proto.Level.debug),
-            ('write', 'dbg', treelog.proto.Level.debug)])
+            ('write', Data('dbg.dat', b'test4'), Level.debug),
+            ('write', 'dbg', Level.debug)])
 
 
 class FilterMinMaxLog(Log):
@@ -494,29 +495,29 @@ class FilterMinMaxLog(Log):
     @contextlib.contextmanager
     def output_tester(self):
         recordlog = treelog.RecordLog()
-        yield treelog.FilterLog(recordlog, minlevel=treelog.proto.Level.info, maxlevel=treelog.proto.Level.warning)
+        yield treelog.FilterLog(recordlog, minlevel=Level.info, maxlevel=Level.warning)
         self.assertEqual(recordlog._messages, [
-            ('write', 'my message', treelog.proto.Level.user),
-            ('write', treelog.proto.Data('test.dat', b'test1'), treelog.proto.Level.info),
+            ('write', 'my message', Level.user),
+            ('write', Data('test.dat', b'test1'), Level.info),
             ('pushcontext', 'my context'),
             ('pushcontext', 'iter 1'),
-            ('write', 'a', treelog.proto.Level.info),
+            ('write', 'a', Level.info),
             ('recontext', 'iter 2'),
-            ('write', 'b', treelog.proto.Level.info),
+            ('write', 'b', Level.info),
             ('recontext', 'iter 3'),
-            ('write', 'c', treelog.proto.Level.info),
+            ('write', 'c', Level.info),
             ('recontext', 'test.dat'),
-            ('write', 'generating', treelog.proto.Level.info),
+            ('write', 'generating', Level.info),
             ('popcontext',),
-            ('write', treelog.proto.Data('test.dat', b'test2'), treelog.proto.Level.user),
+            ('write', Data('test.dat', b'test2'), Level.user),
             ('recontext', 'generate_test'),
-            ('write', treelog.proto.Data('test.dat', b'test3'), treelog.proto.Level.warning),
+            ('write', Data('test.dat', b'test3'), Level.warning),
             ('recontext', 'context step=0'),
-            ('write', 'foo', treelog.proto.Level.info),
+            ('write', 'foo', Level.info),
             ('recontext', 'context step=1'),
-            ('write', 'bar', treelog.proto.Level.info),
+            ('write', 'bar', Level.info),
             ('popcontext',),
-            ('write', 'warn', treelog.proto.Level.warning)])
+            ('write', 'warn', Level.warning)])
 
 
 class LoggingLog(Log):
@@ -550,7 +551,7 @@ class NullLog(Log):
 
     def test_disable(self):
         with treelog.disable():
-            self.assertIsInstance(treelog._state.current, treelog.NullLog)
+            self.assertIsInstance(_state.current, treelog.NullLog)
 
 
 class Iter(unittest.TestCase):
@@ -572,11 +573,11 @@ class Iter(unittest.TestCase):
         self.assertMessages(
             ('pushcontext', 'test 0'),
             ('recontext', 'test 1'),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('recontext', 'test 2'),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('recontext', 'test 3'),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('popcontext',))
 
     def test_nocontext(self):
@@ -586,11 +587,11 @@ class Iter(unittest.TestCase):
         self.assertMessages(
             ('pushcontext', 'test 0'),
             ('recontext', 'test 1'),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('recontext', 'test 2'),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('recontext', 'test 3'),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('popcontext',))
 
     def test_break_entered(self):
@@ -604,7 +605,7 @@ class Iter(unittest.TestCase):
         self.assertMessages(
             ('pushcontext', 'test 0'),
             ('recontext', 'test 1'),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('popcontext',))
 
     def test_break_notentered(self):
@@ -617,7 +618,7 @@ class Iter(unittest.TestCase):
         self.assertMessages(
             ('pushcontext', 'test 0'),
             ('recontext', 'test 1'),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('popcontext',))
 
     def test_multiple(self):
@@ -678,7 +679,7 @@ class Iter(unittest.TestCase):
             ('recontext', "value='a'"),
             ('recontext', "value='b'"),
             ('recontext', "value='c'"),
-            ('write', 'hi', treelog.proto.Level.info),
+            ('write', 'hi', Level.info),
             ('popcontext',))
 
 
