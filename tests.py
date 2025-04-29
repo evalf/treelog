@@ -88,19 +88,19 @@ class StdoutLog(Log):
             yield treelog.StdoutLog()
         self.assertEqual(captured.stdout,
                          'my message\n'
-                         'test.dat\n'
+                         'test.dat [5 bytes]\n'
                          'my context > iter 1 > a\n'
                          'my context > iter 2 > b\n'
                          'my context > iter 3 > c\n'
                          'my context > multiple..\n'
                          '  ..lines\n'
                          'my context > test.dat > generating\n'
-                         'my context > test.dat\n'
-                         'generate_test > test.dat\n'
+                         'my context > test.dat [5 bytes]\n'
+                         'generate_test > test.dat [5 bytes]\n'
                          'context step=0 > foo\n'
                          'context step=1 > bar\n'
-                         'same.dat\n'
-                         'dbg.dat\n'
+                         'same.dat [5 bytes]\n'
+                         'dbg.dat [5 bytes]\n'
                          'dbg\n'
                          'warn\n')
         self.assertEqual(captured.stderr, '')
@@ -114,19 +114,19 @@ class StderrLog(Log):
             yield treelog.StderrLog()
         self.assertEqual(captured.stderr,
                          'my message\n'
-                         'test.dat\n'
+                         'test.dat [5 bytes]\n'
                          'my context > iter 1 > a\n'
                          'my context > iter 2 > b\n'
                          'my context > iter 3 > c\n'
                          'my context > multiple..\n'
                          '  ..lines\n'
                          'my context > test.dat > generating\n'
-                         'my context > test.dat\n'
-                         'generate_test > test.dat\n'
+                         'my context > test.dat [5 bytes]\n'
+                         'generate_test > test.dat [5 bytes]\n'
                          'context step=0 > foo\n'
                          'context step=1 > bar\n'
-                         'same.dat\n'
-                         'dbg.dat\n'
+                         'same.dat [5 bytes]\n'
+                         'dbg.dat [5 bytes]\n'
                          'dbg\n'
                          'warn\n')
         self.assertEqual(captured.stdout, '')
@@ -142,7 +142,7 @@ class RichOutputLog(Log):
                          '\x1b[1;34mmy message\x1b[0m\n'
                          'test.dat > '
                          '\r\x1b[K'
-                         '\x1b[1mtest.dat\x1b[0m\n'
+                         '\x1b[1mtest.dat [5 bytes]\x1b[0m\n'
                          'my context > '
                          'iter 0 '
                          '> \x1b[4D1 > '
@@ -157,10 +157,10 @@ class RichOutputLog(Log):
                          '\x1b[1;31mmultiple..\n  ..lines\x1b[0m\nmy context > test.dat > '
                          '\x1b[1mgenerating\x1b[0m\nmy context > test.dat > '
                          '\x1b[11D\x1b[K'
-                         '\x1b[1;34mtest.dat\x1b[0m\nmy context > '
+                         '\x1b[1;34mtest.dat [5 bytes]\x1b[0m\nmy context > '
                          '\r\x1b[Kgenerate_test > test.dat > '
                          '\x1b[11D\x1b[K'
-                         '\x1b[1;35mtest.dat\x1b[0m\ngenerate_test > '
+                         '\x1b[1;35mtest.dat [5 bytes]\x1b[0m\ngenerate_test > '
                          '\r\x1b[K'
                          'context step=0 > '
                          '\x1b[1mfoo\x1b[0m\n'
@@ -171,10 +171,10 @@ class RichOutputLog(Log):
                          '\r\x1b[K'
                          'same.dat > '
                          '\r\x1b[K'
-                         '\x1b[1;31msame.dat\x1b[0m\n'
+                         '\x1b[1;31msame.dat [5 bytes]\x1b[0m\n'
                          'dbg.dat > '
                          '\r\x1b[K'
-                         '\x1b[1;30mdbg.dat\x1b[0m\n'
+                         '\x1b[1;30mdbg.dat [5 bytes]\x1b[0m\n'
                          '\x1b[1;30mdbg\x1b[0m\n'
                          '\x1b[1;35mwarn\x1b[0m\n')
 
@@ -528,17 +528,17 @@ class LoggingLog(Log):
             yield treelog.LoggingLog()
         self.assertEqual(cm.output, [
             'Level 25:nutils:my message',
-            'INFO:nutils:test.dat',
+            'INFO:nutils:test.dat [5 bytes]',
             'INFO:nutils:my context > iter 1 > a',
             'INFO:nutils:my context > iter 2 > b',
             'INFO:nutils:my context > iter 3 > c',
             'ERROR:nutils:my context > multiple..\n  ..lines',
             'INFO:nutils:my context > test.dat > generating',
-            'Level 25:nutils:my context > test.dat',
-            'WARNING:nutils:generate_test > test.dat',
+            'Level 25:nutils:my context > test.dat [5 bytes]',
+            'WARNING:nutils:generate_test > test.dat [5 bytes]',
             'INFO:nutils:context step=0 > foo',
             'INFO:nutils:context step=1 > bar',
-            'ERROR:nutils:same.dat',
+            'ERROR:nutils:same.dat [5 bytes]',
             'WARNING:nutils:warn'])
 
 

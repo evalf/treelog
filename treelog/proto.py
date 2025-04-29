@@ -18,7 +18,7 @@ class Data:
     data: bytes
 
     def __str__(self):
-        return self.name
+        return f'{self.name} [{len(self.data)} bytes]'
 
 
 class Log(Protocol):
