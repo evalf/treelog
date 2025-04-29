@@ -70,7 +70,7 @@ class Log(unittest.TestCase):
             treelog.info('bar')
         with treelog.errorfile('same.dat', 'wb') as f:
             f.write(b'test3')
-        with treelog.debugfile('dbg.dat', 'wb') as f:
+        with treelog.debugfile('dbg.jpg', 'wb', type='image/jpg') as f:
             f.write(b'test4')
         treelog.debug('dbg')
         treelog.warning('warn')
@@ -100,7 +100,7 @@ class StdoutLog(Log):
                          'context step=0 > foo\n'
                          'context step=1 > bar\n'
                          'same.dat [5 bytes]\n'
-                         'dbg.dat [5 bytes]\n'
+                         'dbg.jpg [image/jpg; 5 bytes]\n'
                          'dbg\n'
                          'warn\n')
         self.assertEqual(captured.stderr, '')
@@ -126,7 +126,7 @@ class StderrLog(Log):
                          'context step=0 > foo\n'
                          'context step=1 > bar\n'
                          'same.dat [5 bytes]\n'
-                         'dbg.dat [5 bytes]\n'
+                         'dbg.jpg [image/jpg; 5 bytes]\n'
                          'dbg\n'
                          'warn\n')
         self.assertEqual(captured.stdout, '')
@@ -172,9 +172,9 @@ class RichOutputLog(Log):
                          'same.dat > '
                          '\r\x1b[K'
                          '\x1b[1;31msame.dat [5 bytes]\x1b[0m\n'
-                         'dbg.dat > '
+                         'dbg.jpg > '
                          '\r\x1b[K'
-                         '\x1b[1;30mdbg.dat [5 bytes]\x1b[0m\n'
+                         '\x1b[1;30mdbg.jpg [image/jpg; 5 bytes]\x1b[0m\n'
                          '\x1b[1;30mdbg\x1b[0m\n'
                          '\x1b[1;35mwarn\x1b[0m\n')
 
@@ -186,7 +186,7 @@ class DataLog(Log):
         with tempfile.TemporaryDirectory() as tmpdir:
             yield treelog.DataLog(tmpdir)
             self.assertEqual(set(os.listdir(tmpdir)), {
-                             'test.dat', 'test-1.dat', 'test-2.dat', 'same.dat', 'dbg.dat'})
+                             'test.dat', 'test-1.dat', 'test-2.dat', 'same.dat', 'dbg.jpg'})
             with open(os.path.join(tmpdir, 'test.dat'), 'r') as f:
                 self.assertEqual(f.read(), 'test1')
             with open(os.path.join(tmpdir, 'test-1.dat'), 'rb') as f:
@@ -195,7 +195,7 @@ class DataLog(Log):
                 self.assertEqual(f.read(), b'test3')
             with open(os.path.join(tmpdir, 'same.dat'), 'rb') as f:
                 self.assertEqual(f.read(), b'test3')
-            with open(os.path.join(tmpdir, 'dbg.dat'), 'r') as f:
+            with open(os.path.join(tmpdir, 'dbg.jpg'), 'r') as f:
                 self.assertEqual(f.read(), 'test4')
 
     @unittest.skipIf(not _path.supports_fd, 'dir_fd not supported on platform')
@@ -217,7 +217,7 @@ class HtmlLog(Log):
     def output_tester(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tests = ['b444ac06613fc8d63795be9ad0beaf55011936ac.dat', '109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat',
-                     '3ebfa301dc59196f18593c45e519287a23297589.dat', '1ff2b3704aede04eecb51e50ca698efd50a1379b.dat']
+                     '3ebfa301dc59196f18593c45e519287a23297589.dat', '1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg']
             with self.assertSilent(), treelog.HtmlLog(tmpdir, title='test') as htmllog:
                 yield htmllog
             self.assertEqual(htmllog.filename, 'log.html')
@@ -260,7 +260,7 @@ class HtmlLog(Log):
                 '<div class="item" data-loglevel="1">bar</div>\n',
                 '</div><div class="end"></div></div>\n',
                 '<div class="item" data-loglevel="4"><a href="3ebfa301dc59196f18593c45e519287a23297589.dat" download="same.dat">same.dat</a></div>\n',
-                '<div class="item" data-loglevel="0"><a href="1ff2b3704aede04eecb51e50ca698efd50a1379b.dat" download="dbg.dat">dbg.dat</a></div>\n',
+                '<div class="item" data-loglevel="0"><a href="1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg" download="dbg.jpg">dbg.jpg</a></div>\n',
                 '<div class="item" data-loglevel="0">dbg</div>\n',
                 '<div class="item" data-loglevel="3">warn</div>\n',
                 '</div></body></html>\n'])
@@ -334,9 +334,9 @@ class RecordLog(Log):
             ('pushcontext', 'same.dat'),
             ('popcontext',),
             ('write', Data('same.dat', b'test3'), Level.error),
-            ('pushcontext', 'dbg.dat'),
+            ('pushcontext', 'dbg.jpg'),
             ('popcontext',),
-            ('write', Data('dbg.dat', b'test4'), Level.debug),
+            ('write', Data('dbg.jpg', b'test4', type='image/jpg'), Level.debug),
             ('write', 'dbg', Level.debug),
             ('write', 'warn', Level.warning)])
         for Log in StdoutLog, DataLog, HtmlLog, RichOutputLog:
@@ -380,7 +380,7 @@ class SimplifiedRecordLog(Log):
             ('write', 'bar', Level.info),
             ('popcontext',),
             ('write', Data('same.dat', b'test3'), Level.error),
-            ('write', Data('dbg.dat', b'test4'), Level.debug),
+            ('write', Data('dbg.jpg', b'test4', type='image/jpg'), Level.debug),
             ('write', 'dbg', Level.debug),
             ('write', 'warn', Level.warning)])
         for Log in StdoutLog, DataLog, HtmlLog:
@@ -486,7 +486,7 @@ class FilterMaxLog(Log):
             ('recontext', 'context step=1'),
             ('write', 'bar', Level.info),
             ('popcontext',),
-            ('write', Data('dbg.dat', b'test4'), Level.debug),
+            ('write', Data('dbg.jpg', b'test4', type='image/jpg'), Level.debug),
             ('write', 'dbg', Level.debug)])
 
 

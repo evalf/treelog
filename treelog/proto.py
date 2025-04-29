@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Protocol, Union
+from typing import Protocol, Union, Optional
 
 
 class Level(Enum):
@@ -16,9 +16,13 @@ class Level(Enum):
 class Data:
     name: str
     data: bytes
+    type: Optional[str] = None
 
     def __str__(self):
-        return f'{self.name} [{len(self.data)} bytes]'
+        info = f'{len(self.data)} bytes'
+        if self.type:
+            info = f'{self.type}; {info}'
+        return f'{self.name} [{info}]'
 
 
 class Log(Protocol):

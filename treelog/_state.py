@@ -94,7 +94,7 @@ class Print:
         current.write(sep.join(map(str, args)), self._level)
 
     @contextlib.contextmanager
-    def open(self, name: str, mode: str):
+    def open(self, name: str, mode: str, type: typing.Optional[str] = None):
         '''Open file in logger-controlled directory.
 
         Args
@@ -115,4 +115,4 @@ class Print:
             yield f if binary else io.TextIOWrapper(f, write_through=True)
             f.seek(0)
             data = f.read()
-        logger.write(Data(name, data), self._level)
+        logger.write(Data(name, data, type), self._level)
