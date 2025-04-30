@@ -1,4 +1,5 @@
 from typing import Generator, ContextManager, Any, Optional, Callable, TypeVar
+import operator
 import contextlib
 import functools
 import io
@@ -51,14 +52,42 @@ def context(title: str, *initargs: Any, **initkwargs: Any) -> Generator[Optional
     log = current
     if initargs or initkwargs:
         format = title.format
-        reformat = lambda *args, **kwargs: log.recontext(
-            format(*args, **kwargs))
+        def reformat(*args, **kwargs):
+            log.popcontext()
+            log.pushcontext(format(*args, **kwargs))
         title = title.format(*initargs, **initkwargs)
     else:
         reformat = None
     log.pushcontext(title)
     try:
         yield reformat
+    finally:
+        log.popcontext()
+
+
+def my_length_hint(iterable):
+    if isinstance(iterable, (zip, map)):
+        f, items = iterable.__reduce__()
+        if f is map:
+            items = items[1:]
+        return min(filter(map(my_length_hint, items), lambda l: l != -1), default=-1)
+    return operator.length_hint(iterable, -1)
+
+
+def itercontext(title: str, iterable, length: Optional[int] = None):
+    it = iter(iterable)
+    try:
+        item = next(it) # any emitted log events precede context
+    except StopIteration:
+        return # skip context if iterator is empty
+    log = current
+    log.pushcontext(title, my_length_hint(iterable) if length is None else length)
+    try:
+        log.nextiter()
+        yield item
+        for item in it:
+            log.nextiter()
+            yield item
     finally:
         log.popcontext()
 

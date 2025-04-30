@@ -39,24 +39,33 @@ class HtmlLog:
         self._context = []
         self._level = 0
 
-    def pushcontext(self, title: str) -> None:
-        self._context.append(title)
+    def pushcontext(self, title: str, length: Optional[int] = None) -> None:
+        self._context.append((title, None if length is None else 0))
 
-    def popcontext(self) -> None:
+    def _close_div(self):
         if self._level == len(self._context):
             print('</div><div class="end"></div></div>', file=self._file)
             self._level -= 1
-        self._context.pop()
+        return self._context.pop()
 
-    def recontext(self, title: str) -> None:
-        self.popcontext()
-        self.pushcontext(title)
+    def _open_divs(self):
+        while self._level < len(self._context):
+            name, index = self._context[self._level]
+            name = html.escape(name)
+            if index is not None:
+                name += f' {index}'
+            print(f'<div class="context"><div class="title">{name}</div><div class="children">', file=self._file)
+            self._level += 1
+
+    def popcontext(self) -> None:
+        self._close_div()
+
+    def nextiter(self) -> None:
+        name, index = self._close_div()
+        self._context.append((name, index + 1))
 
     def write(self, msg, level: Level) -> None:
-        while self._level < len(self._context):
-            print('<div class="context"><div class="title">{}</div><div class="children">'.format(
-                html.escape(self._context[self._level])), file=self._file)
-            self._level += 1
+        self._open_divs()
         if isinstance(msg, Data):
             _, ext = os.path.splitext(msg.name)
             filename = self._write_hash(msg.data, ext)

@@ -36,21 +36,21 @@ class RecordLog:
         self._messages = []
         self._fid = 0  # internal file counter
 
-    def pushcontext(self, title: str) -> None:
-        if self._simplify and self._messages and self._messages[-1][0] == 'popcontext':
-            self._messages[-1] = 'recontext', title
-        else:
-            self._messages.append(('pushcontext', title))
+    def pushcontext(self, title: str, length: Optional[int] = None) -> None:
+        self._messages.append(('pushcontext', title, length))
 
-    def recontext(self, title: str) -> None:
-        if self._simplify and self._messages and self._messages[-1][0] in ('pushcontext', 'recontext'):
-            self._messages[-1] = self._messages[-1][0], title
-        else:
-            self._messages.append(('recontext', title))
+    def nextiter(self) -> None:
+        self._messages.append(('nextiter',))
 
     def popcontext(self) -> None:
-        if not self._simplify or not self._messages or self._messages[-1][0] not in ('pushcontext', 'recontext') or self._messages.pop()[0] == 'recontext':
-            self._messages.append(('popcontext',))
+        if self._simplify:
+            i = len(self._messages) - 1
+            while self._messages[i][0] == 'nextiter':
+                i -= 1
+            if self._messages[i][0] == 'pushcontext':
+                del self._messages[i:]
+                return
+        self._messages.append(('popcontext',))
 
     def write(self, msg, level: Level) -> None:
         self._messages.append(('write', msg, level))
@@ -66,11 +66,10 @@ class RecordLog:
             from ._state import current as log
         for cmd, *args in self._messages:
             if cmd == 'pushcontext':
-                title, = args
-                log.pushcontext(title)
-            elif cmd == 'recontext':
-                title, = args
-                log.recontext(title)
+                title, length = args
+                log.pushcontext(title, length)
+            elif cmd == 'nextiter':
+                log.nextiter()
             elif cmd == 'popcontext':
                 log.popcontext()
             elif cmd == 'write':

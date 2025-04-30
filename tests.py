@@ -142,9 +142,8 @@ class RichOutputLog(Log):
                          'test.dat > '
                          '\r\x1b[K'
                          '\x1b[1mtest.dat [5 bytes]\x1b[0m\n'
-                         'my context > '
-                         'iter 0 '
-                         '> \x1b[4D1 > '
+                         'my context > iter 0 > '
+                         '\x1b[4D1 > '
                          '\x1b[1ma\x1b[0m\nmy context > iter 1 > '
                          '\x1b[4D2 > '
                          '\x1b[1mb\x1b[0m\nmy context > iter 2 > '
@@ -164,7 +163,8 @@ class RichOutputLog(Log):
                          'context step=0 > '
                          '\x1b[1mfoo\x1b[0m\n'
                          'context step=0 > '
-                         '\x1b[4D1 > '
+                         '\r\x1b[K'
+                         'context step=1 > '
                          '\x1b[1mbar\x1b[0m\n'
                          'context step=1 > '
                          '\r\x1b[K'
@@ -298,38 +298,39 @@ class RecordLog(Log):
         yield recordlog
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', Level.user),
-            ('pushcontext', 'test.dat'),
+            ('pushcontext', 'test.dat', None),
             ('popcontext',),
             ('write', Data('test.dat', b'test1'), Level.info),
-            ('pushcontext', 'my context'),
-            ('pushcontext', 'iter 0'),
-            ('recontext', 'iter 1'),
+            ('pushcontext', 'my context', None),
+            ('pushcontext', 'iter', -1),
+            ('nextiter',),
             ('write', 'a', Level.info),
-            ('recontext', 'iter 2'),
+            ('nextiter',),
             ('write', 'b', Level.info),
-            ('recontext', 'iter 3'),
+            ('nextiter',),
             ('write', 'c', Level.info),
             ('popcontext',),
-            ('pushcontext', 'empty'),
+            ('pushcontext', 'empty', None),
             ('popcontext',),
             ('write', 'multiple..\n  ..lines', Level.error),
-            ('pushcontext', 'test.dat'),
+            ('pushcontext', 'test.dat', None),
             ('write', 'generating', Level.info),
             ('popcontext',),
             ('write', Data('test.dat', b'test2'), Level.user),
             ('popcontext',),
-            ('pushcontext', 'generate_test'),
-            ('pushcontext', 'test.dat'),
+            ('pushcontext', 'generate_test', None),
+            ('pushcontext', 'test.dat', None),
             ('popcontext',),
             ('write', Data('test.dat', b'test3'), Level.warning),
             ('popcontext',),
-            ('pushcontext', 'context step=0'),
+            ('pushcontext', 'context step=0', None),
             ('write', 'foo', Level.info),
-            ('recontext', 'context step=1'),
+            ('popcontext',),
+            ('pushcontext', 'context step=1', None),
             ('write', 'bar', Level.info),
             ('popcontext',),
             ('write', Data('same.dat', b'test3'), Level.error),
-            ('pushcontext', 'dbg.jpg'),
+            ('pushcontext', 'dbg.jpg', None),
             ('popcontext',),
             ('write', Data('dbg.jpg', b'test4', type='image/jpg'), Level.debug),
             ('write', 'dbg', Level.debug),
@@ -354,24 +355,28 @@ class SimplifiedRecordLog(Log):
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', Level.user),
             ('write', Data('test.dat', b'test1'), Level.info),
-            ('pushcontext', 'my context'),
-            ('pushcontext', 'iter 1'),
+            ('pushcontext', 'my context', None),
+            ('pushcontext', 'iter', -1),
+            ('nextiter',),
             ('write', 'a', Level.info),
-            ('recontext', 'iter 2'),
+            ('nextiter',),
             ('write', 'b', Level.info),
-            ('recontext', 'iter 3'),
+            ('nextiter',),
             ('write', 'c', Level.info),
             ('popcontext',),
             ('write', 'multiple..\n  ..lines', Level.error),
-            ('pushcontext', 'test.dat'),
+            ('pushcontext', 'test.dat', None),
             ('write', 'generating', Level.info),
             ('popcontext',),
             ('write', Data('test.dat', b'test2'), Level.user),
-            ('recontext', 'generate_test'),
+            ('popcontext',),
+            ('pushcontext', 'generate_test', None),
             ('write', Data('test.dat', b'test3'), Level.warning),
-            ('recontext', 'context step=0'),
+            ('popcontext',),
+            ('pushcontext', 'context step=0', None),
             ('write', 'foo', Level.info),
-            ('recontext', 'context step=1'),
+            ('popcontext',),
+            ('pushcontext', 'context step=1', None),
             ('write', 'bar', Level.info),
             ('popcontext',),
             ('write', Data('same.dat', b'test3'), Level.error),
@@ -396,13 +401,13 @@ class TeeLogTestLog:
         self._update = update
         self.filenos = filenos
 
-    def pushcontext(self, title):
+    def pushcontext(self, title, iter):
         pass
 
     def popcontext(self):
         pass
 
-    def recontext(self, title):
+    def nextiter(self):
         pass
 
     def write(self, text, level):
@@ -446,10 +451,11 @@ class FilterMinLog(Log):
         yield treelog.FilterLog(recordlog, minlevel=Level.user)
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', Level.user),
-            ('pushcontext', 'my context'),
+            ('pushcontext', 'my context', None),
             ('write', 'multiple..\n  ..lines', Level.error),
             ('write', Data('test.dat', b'test2'), Level.user),
-            ('recontext', 'generate_test'),
+            ('popcontext',),
+            ('pushcontext', 'generate_test', None),
             ('write', Data('test.dat', b'test3'), Level.warning),
             ('popcontext',),
             ('write', Data('same.dat', b'test3'), Level.error),
@@ -465,20 +471,24 @@ class FilterMaxLog(Log):
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', Level.user),
             ('write', Data('test.dat', b'test1'), Level.info),
-            ('pushcontext', 'my context'),
-            ('pushcontext', 'iter 1'),
+            ('pushcontext', 'my context', None),
+            ('pushcontext', 'iter', -1),
+            ('nextiter',),
             ('write', 'a', Level.info),
-            ('recontext', 'iter 2'),
+            ('nextiter',),
             ('write', 'b', Level.info),
-            ('recontext', 'iter 3'),
+            ('nextiter',),
             ('write', 'c', Level.info),
-            ('recontext', 'test.dat'),
+            ('popcontext',),
+            ('pushcontext', 'test.dat', None),
             ('write', 'generating', Level.info),
             ('popcontext',),
             ('write', Data('test.dat', b'test2'), Level.user),
-            ('recontext', 'context step=0'),
+            ('popcontext',),
+            ('pushcontext', 'context step=0', None),
             ('write', 'foo', Level.info),
-            ('recontext', 'context step=1'),
+            ('popcontext',),
+            ('pushcontext', 'context step=1', None),
             ('write', 'bar', Level.info),
             ('popcontext',),
             ('write', Data('dbg.jpg', b'test4', type='image/jpg'), Level.debug),
@@ -494,22 +504,27 @@ class FilterMinMaxLog(Log):
         self.assertEqual(recordlog._messages, [
             ('write', 'my message', Level.user),
             ('write', Data('test.dat', b'test1'), Level.info),
-            ('pushcontext', 'my context'),
-            ('pushcontext', 'iter 1'),
+            ('pushcontext', 'my context', None),
+            ('pushcontext', 'iter', -1),
+            ('nextiter',),
             ('write', 'a', Level.info),
-            ('recontext', 'iter 2'),
+            ('nextiter',),
             ('write', 'b', Level.info),
-            ('recontext', 'iter 3'),
+            ('nextiter',),
             ('write', 'c', Level.info),
-            ('recontext', 'test.dat'),
+            ('popcontext',),
+            ('pushcontext', 'test.dat', None),
             ('write', 'generating', Level.info),
             ('popcontext',),
             ('write', Data('test.dat', b'test2'), Level.user),
-            ('recontext', 'generate_test'),
+            ('popcontext',),
+            ('pushcontext', 'generate_test', None),
             ('write', Data('test.dat', b'test3'), Level.warning),
-            ('recontext', 'context step=0'),
+            ('popcontext',),
+            ('pushcontext', 'context step=0', None),
             ('write', 'foo', Level.info),
-            ('recontext', 'context step=1'),
+            ('popcontext',),
+            ('pushcontext', 'context step=1', None),
             ('write', 'bar', Level.info),
             ('popcontext',),
             ('write', 'warn', Level.warning)])
@@ -566,12 +581,12 @@ class Iter(unittest.TestCase):
                 self.assertEqual(c, 'abc'[i])
                 treelog.info('hi')
         self.assertMessages(
-            ('pushcontext', 'test 0'),
-            ('recontext', 'test 1'),
+            ('pushcontext', 'test', -1),
+            ('nextiter',),
             ('write', 'hi', Level.info),
-            ('recontext', 'test 2'),
+            ('nextiter',),
             ('write', 'hi', Level.info),
-            ('recontext', 'test 3'),
+            ('nextiter',),
             ('write', 'hi', Level.info),
             ('popcontext',))
 
@@ -580,39 +595,26 @@ class Iter(unittest.TestCase):
             self.assertEqual(c, 'abc'[i])
             treelog.info('hi')
         self.assertMessages(
-            ('pushcontext', 'test 0'),
-            ('recontext', 'test 1'),
+            ('pushcontext', 'test', -1),
+            ('nextiter',),
             ('write', 'hi', Level.info),
-            ('recontext', 'test 2'),
+            ('nextiter',),
             ('write', 'hi', Level.info),
-            ('recontext', 'test 3'),
+            ('nextiter',),
             ('write', 'hi', Level.info),
             ('popcontext',))
 
-    def test_break_entered(self):
+    def test_break(self):
         with warnings.catch_warnings(record=True) as w, treelog.iter.plain('test', [1, 2, 3]) as myiter:
             for item in myiter:
                 self.assertEqual(item, 1)
                 treelog.info('hi')
                 break
-            gc.collect()
+        gc.collect()
         self.assertEqual(w, [])
         self.assertMessages(
-            ('pushcontext', 'test 0'),
-            ('recontext', 'test 1'),
-            ('write', 'hi', Level.info),
-            ('popcontext',))
-
-    def test_break_notentered(self):
-        with self.assertWarns(ResourceWarning):
-            for item in treelog.iter.plain('test', [1, 2, 3]):
-                self.assertEqual(item, 1)
-                treelog.info('hi')
-                break
-            gc.collect()
-        self.assertMessages(
-            ('pushcontext', 'test 0'),
-            ('recontext', 'test 1'),
+            ('pushcontext', 'test', -1),
+            ('nextiter',),
             ('write', 'hi', Level.info),
             ('popcontext',))
 
@@ -624,40 +626,30 @@ class Iter(unittest.TestCase):
         with treelog.iter.plain('test', 'abc') as items:
             self.assertEqual(list(items), list('abc'))
         self.assertMessages(
-            ('pushcontext', 'test 0'),
-            ('recontext', 'test 1'),
-            ('recontext', 'test 2'),
-            ('recontext', 'test 3'),
+            ('pushcontext', 'test', -1),
+            ('nextiter',),
+            ('nextiter',),
+            ('nextiter',),
             ('popcontext',))
 
     def test_plain_withbraces(self):
         with treelog.iter.plain('t{es}t', 'abc') as items:
             self.assertEqual(list(items), list('abc'))
         self.assertMessages(
-            ('pushcontext', 't{es}t 0'),
-            ('recontext', 't{es}t 1'),
-            ('recontext', 't{es}t 2'),
-            ('recontext', 't{es}t 3'),
+            ('pushcontext', 't{es}t', -1),
+            ('nextiter',),
+            ('nextiter',),
+            ('nextiter',),
             ('popcontext',))
 
     def test_fraction(self):
         with treelog.iter.fraction('test', 'abc') as items:
             self.assertEqual(list(items), list('abc'))
         self.assertMessages(
-            ('pushcontext', 'test 0/3'),
-            ('recontext', 'test 1/3'),
-            ('recontext', 'test 2/3'),
-            ('recontext', 'test 3/3'),
-            ('popcontext',))
-
-    def test_percentage(self):
-        with treelog.iter.percentage('test', 'abc') as items:
-            self.assertEqual(list(items), list('abc'))
-        self.assertMessages(
-            ('pushcontext', 'test 0%'),
-            ('recontext', 'test 33%'),
-            ('recontext', 'test 67%'),
-            ('recontext', 'test 100%'),
+            ('pushcontext', 'test', 3),
+            ('nextiter',),
+            ('nextiter',),
+            ('nextiter',),
             ('popcontext',))
 
     def test_send(self):
@@ -670,12 +662,12 @@ class Iter(unittest.TestCase):
                 self.assertEqual(item, 'abc'[i])
             treelog.info('hi')
         self.assertMessages(
-            ('pushcontext', 'value'),
-            ('recontext', "value='a'"),
-            ('recontext', "value='b'"),
-            ('recontext', "value='c'"),
-            ('write', 'hi', Level.info),
-            ('popcontext',))
+            ('pushcontext', 'value', 3),
+            ('nextiter',),
+            ('nextiter',),
+            ('nextiter',),
+            ('popcontext',),
+            ('write', 'hi', Level.info))
 
 
 class DocTest(unittest.TestCase):

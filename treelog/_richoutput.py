@@ -21,7 +21,7 @@ class RichOutputLog(ContextLog):
         set_ansi_console()
 
     def contextchangedhook(self) -> None:
-        _current = ''.join(item + ' > ' for item in self.currentcontext)
+        _current = ''.join(f'{item} > ' for item in self.currentcontext)
         if _current == self._current:
             return
         n = first(c1 != c2 for c1, c2 in zip(_current, self._current))
