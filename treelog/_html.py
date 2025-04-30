@@ -36,26 +36,27 @@ class HtmlLog:
         self._file.write(HTMLHEAD.format(
             title=title, htmltitle=htmltitle, css=css, js=js, favicon=favicon))
         # active contexts that are not yet opened as html elements
-        self._unopened = []
+        self._context = []
+        self._level = 0
 
     def pushcontext(self, title: str) -> None:
-        self._unopened.append(title)
+        self._context.append(title)
 
     def popcontext(self) -> None:
-        if self._unopened:
-            self._unopened.pop()
-        else:
+        if self._level == len(self._context):
             print('</div><div class="end"></div></div>', file=self._file)
+            self._level -= 1
+        self._context.pop()
 
     def recontext(self, title: str) -> None:
         self.popcontext()
         self.pushcontext(title)
 
     def write(self, msg, level: Level) -> None:
-        for c in self._unopened:
+        while self._level < len(self._context):
             print('<div class="context"><div class="title">{}</div><div class="children">'.format(
-                html.escape(c)), file=self._file)
-        self._unopened.clear()
+                html.escape(self._context[self._level])), file=self._file)
+            self._level += 1
         if isinstance(msg, Data):
             _, ext = os.path.splitext(msg.name)
             filename = self._write_hash(msg.data, ext)
