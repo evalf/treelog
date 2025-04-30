@@ -1,6 +1,6 @@
 'Logging framework that organizes messages in a tree'
 
-__version__ = '1.0'
+__version__ = '2a1'
 
 from importlib import import_module
 
@@ -15,6 +15,11 @@ _state_attrs = {
     'context',
     'withcontext',
 }
+_state_funcs = {
+    level + op
+        for level in ['debug', 'info', 'user', 'warning', 'error']
+            for op in ['', 'data', 'file']
+}
 _log_objs = {
     'DataLog',
     'FilterLog',
@@ -27,20 +32,6 @@ _log_objs = {
     'StdoutLog',
     'TeeLog',
 }
-_log_funcs = {
-    'debug',
-    'info',
-    'user',
-    'warning',
-    'error',
-}
-_log_file_funcs = {
-    'debugfile',
-    'infofile',
-    'userfile',
-    'warningfile',
-    'errorfile',
-}
 _legacy = {
     'version': __version__,
     'Log': None,
@@ -51,9 +42,8 @@ def __dir__():
         '__version__',
         *_sub_mods,
         *_state_attrs,
+        *_state_funcs,
         *_log_objs,
-        *_log_funcs,
-        *_log_file_funcs,
         *_legacy,
     )
 
@@ -61,12 +51,9 @@ def __getattr__(attr):
     if attr in _state_attrs:
         _state = import_module(f'._state', 'treelog')
         obj = getattr(_state, attr)
-    elif attr in _log_funcs:
+    elif attr in _state_funcs:
         _state = import_module(f'._state', 'treelog')
-        obj = _state.Print(getattr(_state.Level, attr))
-    elif attr in _log_file_funcs:
-        _state = import_module(f'._state', 'treelog')
-        obj = _state.Print(getattr(_state.Level, attr[:-4])).open
+        obj = _state.partial(attr)
     elif attr in _log_objs:
         m = import_module(f'._{attr[:-3].lower()}', 'treelog')
         obj = getattr(m, attr)

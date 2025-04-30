@@ -15,6 +15,6 @@ class LoggingLog(ContextLog):
         self._logger = logging.getLogger(name)
         super().__init__()
 
-    def write(self, text: str, level: Level) -> None:
+    def write(self, msg, level: Level, data: typing.Optional[bytes] = None) -> None:
         self._logger.log(self._levels[level.value], ' > '.join(
-            (*self.currentcontext, text)))
+            (*self.currentcontext, str(msg))))

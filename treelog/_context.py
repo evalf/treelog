@@ -1,10 +1,3 @@
-import contextlib
-import typing
-
-from ._io import devnull
-from .proto import Level
-
-
 class ContextLog:
     '''Base class for loggers that keep track of the current list of contexts.
 
@@ -33,13 +26,3 @@ class ContextLog:
 
     def contextchangedhook(self) -> None:
         pass
-
-    def write(self, text: str, level: Level) -> None:
-        # This function exists solely to make mypy happy.
-        raise NotImplementedError
-
-    @contextlib.contextmanager
-    def open(self, filename: str, mode: str, level: Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
-        with devnull(mode) as f:
-            yield f
-        self.write(filename, level=level)

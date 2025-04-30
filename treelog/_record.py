@@ -52,20 +52,8 @@ class RecordLog:
         if not self._simplify or not self._messages or self._messages[-1][0] not in ('pushcontext', 'recontext') or self._messages.pop()[0] == 'recontext':
             self._messages.append(('popcontext',))
 
-    @contextlib.contextmanager
-    def open(self, filename: str, mode: str, level: Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
-        fid = self._fid
-        self._fid += 1
-        self._messages.append(('open', fid, filename, mode, level))
-        with tempfile.TemporaryFile(mode+'+') as g:
-            try:
-                yield g
-            finally:
-                g.seek(0)
-                self._messages.append(('close', fid, g.read()))
-
-    def write(self, text: str, level: Level) -> None:
-        self._messages.append(('write', text, level))
+    def write(self, msg, level: Level) -> None:
+        self._messages.append(('write', msg, level))
 
     def replay(self, log: typing.Optional[Log] = None) -> None:
         '''Replay this recorded log.
@@ -85,16 +73,6 @@ class RecordLog:
                 log.recontext(title)
             elif cmd == 'popcontext':
                 log.popcontext()
-            elif cmd == 'open':
-                fid, filename, mode, level = args
-                ctx = log.open(filename, mode, level=level)
-                files[fid] = ctx, ctx.__enter__()
-            elif cmd == 'close':
-                fid, data = args
-                ctx, f = files.pop(fid)
-                if data is not None:
-                    f.write(data)
-                ctx.__exit__(None, None, None)
             elif cmd == 'write':
-                text, level = args
-                log.write(text, level=level)
+                msg, level = args
+                log.write(msg, level)

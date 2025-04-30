@@ -1,6 +1,5 @@
 import typing
 
-from ._io import devnull
 from .proto import Log, Level
 
 
@@ -29,9 +28,6 @@ class FilterLog:
             return False
         return True
 
-    def write(self, text: str, level: Level) -> None:
+    def write(self, msg, level: Level) -> None:
         if self._passthrough(level):
-            self._baselog.write(text, level)
-
-    def open(self, filename: str, mode: str, level: Level) -> typing.ContextManager[typing.IO[typing.Any]]:
-        return self._baselog.open(filename, mode, level) if self._passthrough(level) else devnull(mode)
+            self._baselog.write(msg, level)

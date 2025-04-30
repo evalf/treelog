@@ -1,8 +1,9 @@
-import typing
-import enum
+from dataclasses import dataclass
+from enum import Enum
+from typing import Protocol, Union, Optional
 
 
-class Level(enum.Enum):
+class Level(Enum):
 
     debug = 0
     info = 1
@@ -11,12 +12,22 @@ class Level(enum.Enum):
     error = 4
 
 
-class Log(typing.Protocol):
+@dataclass(frozen=True)
+class Data:
+    name: str
+    data: bytes
+    type: Optional[str] = None
+
+    def __str__(self):
+        info = f'{len(self.data)} bytes'
+        if self.type:
+            info = f'{self.type}; {info}'
+        return f'{self.name} [{info}]'
+
+
+class Log(Protocol):
 
     def pushcontext(self, title: str) -> None: ...
     def popcontext(self) -> None: ...
     def recontext(self, title: str) -> None: ...
-    def write(self, text: str, level: Level) -> None: ...
-
-    def open(self, filename: str, mode: str,
-             level: Level) -> typing.ContextManager[typing.IO[typing.Any]]: ...
+    def write(self, msg: Union[str, Data], level: Level) -> None: ...

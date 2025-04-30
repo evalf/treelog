@@ -8,29 +8,25 @@ import typing
 import urllib.parse
 import warnings
 
-from ._io import directory, sequence
-from .proto import Level
+from ._path import makedirs, sequence
+from .proto import Level, Data
 
 
 class HtmlLog:
     '''Output html nested lists.'''
 
     def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
-        self._dir = directory(dirpath)
-        self._file, self.filename = self._dir.openfirstunused(
-            sequence(filename), 'w', encoding='utf-8')
-        css = hashlib.sha1(CSS.encode()).hexdigest() + '.css'
-        try:
-            with self._dir.open(css, 'w') as f:
-                f.write(CSS)
-        except FileExistsError:
-            pass
-        js = hashlib.sha1(JS.encode()).hexdigest() + '.js'
-        try:
-            with self._dir.open(js, 'w') as f:
-                f.write(JS)
-        except FileExistsError:
-            pass
+        self._path = makedirs(dirpath)
+        for self.filename in sequence(filename):
+            try:
+                self._file = (self._path / self.filename).open('x', encoding='utf-8')
+            except FileExistsError:
+                continue
+            break
+        else:
+            raise ValueError('all filenames are in use')
+        css = self._write_hash(CSS.encode(), '.css')
+        js = self._write_hash(JS.encode(), '.js')
         if title is None:
             title = ' '.join(sys.argv)
         if htmltitle is None:
@@ -55,36 +51,18 @@ class HtmlLog:
         self.popcontext()
         self.pushcontext(title)
 
-    def write(self, text: str, level: Level, escape: bool = True) -> None:
+    def write(self, msg, level: Level) -> None:
         for c in self._unopened:
             print('<div class="context"><div class="title">{}</div><div class="children">'.format(
                 html.escape(c)), file=self._file)
         self._unopened.clear()
-        if escape:
-            text = html.escape(text)
-        print('<div class="item" data-loglevel="{}">{}</div>'.format(level.value,
-              text), file=self._file, flush=True)
-
-    @contextlib.contextmanager
-    def open(self, filename: str, mode: str, level: Level) -> typing.Generator[typing.IO[typing.Any], None, None]:
-        base, ext = os.path.splitext(filename)
-        f, name = self._dir.openrandom(mode)
-        try:
-            with f:
-                yield f
-                f.seek(0)
-                realname = _filehash(f.fileno(), 'sha1').hex() + ext
-        except:
-            self._dir.unlink(name)
-            raise
-        try:
-            self._dir.stat(realname)
-        except FileNotFoundError:
-            self._dir.rename(name, realname)
+        if isinstance(msg, Data):
+            _, ext = os.path.splitext(msg.name)
+            filename = self._write_hash(msg.data, ext)
+            text = '<a href="{href}" download="{name}">{name}</a>'.format(href=urllib.parse.quote(filename), name=html.escape(msg.name))
         else:
-            self._dir.unlink(name)
-        self.write('<a href="{href}" download="{name}">{name}</a>'.format(
-            href=urllib.parse.quote(realname), name=html.escape(filename)), level, escape=False)
+            text = html.escape(msg)
+        print('<div class="item" data-loglevel="{}">{}</div>'.format(level.value, text), file=self._file, flush=True)
 
     def close(self) -> bool:
         if hasattr(self, '_file') and not self._file.closed:
@@ -103,6 +81,15 @@ class HtmlLog:
     def __del__(self) -> None:
         if self.close():
             warnings.warn('unclosed object {!r}'.format(self), ResourceWarning)
+
+    def _write_hash(self, data, ext):
+        filename = hashlib.sha1(data).hexdigest() + ext
+        try:
+            with (self._path / filename).open('xb') as f:
+                f.write(data)
+        except FileExistsError:
+            pass
+        return filename
 
 
 HTMLHEAD = '''\
@@ -777,13 +764,3 @@ FAVICON = 'data:image/png;base64,' \
     'AAAAAXRSTlMAQObYZgAAAFtJREFUaN7t2SEOACEMRcEa7ofh/ldBsJJAS1bO86Ob/MZY9ViN' \
     'TD0oiqIo6qrOURRFUVRepQ4TRVEURdXVV6MoiqKoV2UJpCiKov7+p1AURVFUWZWiKIqiqI2a' \
     '8O8qJ0n+GP4AAAAASUVORK5CYII='
-
-
-def _filehash(fd: int, hashtype: str) -> bytes:
-    h = hashlib.new(hashtype)
-    blocksize = 65536
-    buf = os.read(fd, blocksize)
-    while buf:
-        h.update(buf)
-        buf = os.read(fd, blocksize)
-    return h.digest()

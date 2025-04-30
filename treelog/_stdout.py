@@ -5,5 +5,5 @@ from ._context import ContextLog
 class StdoutLog(ContextLog):
     '''Output plain text to stream.'''
 
-    def write(self, text: str, level: proto.Level) -> None:
-        print(' > '.join((*self.currentcontext, text)))
+    def write(self, msg, level: proto.Level) -> None:
+        print(*self.currentcontext, msg, sep=' > ')
