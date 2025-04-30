@@ -1,6 +1,6 @@
+from typing import Optional
 import contextlib
 import tempfile
-import typing
 
 from .proto import Level, Log
 
@@ -33,7 +33,7 @@ class RecordLog:
         # `cmd` is either 'pushcontext', 'popcontext', 'open',
         # 'close' or 'write'.  See `self.replay` below.
         self._simplify = simplify
-        self._messages = []  # type: typing.List[typing.Any]
+        self._messages = []
         self._fid = 0  # internal file counter
 
     def pushcontext(self, title: str) -> None:
@@ -55,7 +55,7 @@ class RecordLog:
     def write(self, msg, level: Level) -> None:
         self._messages.append(('write', msg, level))
 
-    def replay(self, log: typing.Optional[Log] = None) -> None:
+    def replay(self, log: Optional[Log] = None) -> None:
         '''Replay this recorded log.
 
         All recorded messages and files will be written to the log that is either

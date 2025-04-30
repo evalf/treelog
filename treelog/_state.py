@@ -1,8 +1,8 @@
+from typing import Generator, ContextManager, Any, Optional, Callable, TypeVar
 import contextlib
 import functools
 import io
 import tempfile
-import typing
 
 from ._data import DataLog
 from ._stdout import StdoutLog
@@ -15,7 +15,7 @@ current = FilterLog(TeeLog(StdoutLog(), DataLog()), minlevel=Level.info)
 
 
 @contextlib.contextmanager
-def set(logger: Log) -> typing.Generator[Log, None, None]:
+def set(logger: Log) -> Generator[Log, None, None]:
     '''Set logger as current.'''
 
     global current
@@ -27,20 +27,20 @@ def set(logger: Log) -> typing.Generator[Log, None, None]:
         current = old
 
 
-def add(logger: Log) -> typing.ContextManager[Log]:
+def add(logger: Log) -> ContextManager[Log]:
     '''Add logger to current.'''
 
     return set(TeeLog(current, logger))
 
 
-def disable() -> typing.ContextManager[Log]:
+def disable() -> ContextManager[Log]:
     '''Disable logger.'''
 
     return set(NullLog())
 
 
 @contextlib.contextmanager
-def context(title: str, *initargs: typing.Any, **initkwargs: typing.Any) -> typing.Generator[typing.Optional[typing.Callable[..., None]], None, None]:
+def context(title: str, *initargs: Any, **initkwargs: Any) -> Generator[Optional[Callable[..., None]], None, None]:
     '''Enterable context.
 
     Returns an enterable object which upon enter creates a context with a given
@@ -51,7 +51,6 @@ def context(title: str, *initargs: typing.Any, **initkwargs: typing.Any) -> typi
     log = current
     if initargs or initkwargs:
         format = title.format
-        # type: typing.Optional[typing.Callable[..., None]]
         reformat = lambda *args, **kwargs: log.recontext(
             format(*args, **kwargs))
         title = title.format(*initargs, **initkwargs)
@@ -64,19 +63,19 @@ def context(title: str, *initargs: typing.Any, **initkwargs: typing.Any) -> typi
         log.popcontext()
 
 
-T = typing.TypeVar('T')
+T = TypeVar('T')
 
-def withcontext(f: typing.Callable[..., T]) -> typing.Callable[..., T]:
+def withcontext(f: Callable[..., T]) -> Callable[..., T]:
     '''Decorator; executes the wrapped function in its own logging context.'''
 
     @functools.wraps(f)
-    def wrapped(*args: typing.Any, **kwargs: typing.Any) -> T:
+    def wrapped(*args: Any, **kwargs: Any) -> T:
         with context(f.__name__):
             return f(*args, **kwargs)
     return wrapped
 
 
-def write(level: Level, *args: typing.Any, sep: str = ' ') -> None:
+def write(level: Level, *args: Any, sep: str = ' ') -> None:
     '''Write message to log.
 
     Args
@@ -90,7 +89,7 @@ def write(level: Level, *args: typing.Any, sep: str = ' ') -> None:
 
 
 @contextlib.contextmanager
-def file(level: Level, name: str, mode: str, type: typing.Optional[str] = None):
+def file(level: Level, name: str, mode: str, type: Optional[str] = None):
     '''Open file in logger-controlled directory.
 
     Args
@@ -114,7 +113,7 @@ def file(level: Level, name: str, mode: str, type: typing.Optional[str] = None):
     current.write(Data(name, data, type), level)
 
 
-def data(level: Level, name: str, data: bytes, type: typing.Optional[str] = None):
+def data(level: Level, name: str, data: bytes, type: Optional[str] = None):
     current.write(Data(name, data, type), level)
 
 

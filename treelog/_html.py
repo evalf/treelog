@@ -1,10 +1,10 @@
+from typing import Optional, Type
 import contextlib
 import hashlib
 import html
 import os
 import sys
 import types
-import typing
 import urllib.parse
 import warnings
 
@@ -15,7 +15,7 @@ from .proto import Level, Data
 class HtmlLog:
     '''Output html nested lists.'''
 
-    def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
+    def __init__(self, dirpath: str, *, filename: str = 'log.html', title: Optional[str] = None, htmltitle: Optional[str] = None, favicon: Optional[str] = None) -> None:
         self._path = makedirs(dirpath)
         for self.filename in sequence(filename):
             try:
@@ -36,7 +36,7 @@ class HtmlLog:
         self._file.write(HTMLHEAD.format(
             title=title, htmltitle=htmltitle, css=css, js=js, favicon=favicon))
         # active contexts that are not yet opened as html elements
-        self._unopened = []  # type: typing.List[str]
+        self._unopened = []
 
     def pushcontext(self, title: str) -> None:
         self._unopened.append(title)
@@ -75,7 +75,7 @@ class HtmlLog:
     def __enter__(self) -> 'HtmlLog':
         return self
 
-    def __exit__(self, t: typing.Optional[typing.Type[BaseException]], value: typing.Optional[BaseException], traceback: typing.Optional[types.TracebackType]) -> None:
+    def __exit__(self, t: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[types.TracebackType]) -> None:
         self.close()
 
     def __del__(self) -> None:

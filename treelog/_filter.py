@@ -1,4 +1,4 @@
-import typing
+from typing import Optional
 
 from .proto import Log, Level
 
@@ -6,7 +6,7 @@ from .proto import Log, Level
 class FilterLog:
     '''Filter messages based on level.'''
 
-    def __init__(self, baselog: Log, minlevel: typing.Optional[Level] = None, maxlevel: typing.Optional[Level] = None) -> None:
+    def __init__(self, baselog: Log, minlevel: Optional[Level] = None, maxlevel: Optional[Level] = None) -> None:
         self._baselog = baselog
         self._minlevel = minlevel
         self._maxlevel = maxlevel

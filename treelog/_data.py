@@ -1,6 +1,6 @@
+from typing import Callable, Iterable
 import functools
 import os
-import typing
 
 from ._path import makedirs, sequence
 from .proto import Level, Data
@@ -9,7 +9,7 @@ from .proto import Level, Data
 class DataLog:
     '''Output only data.'''
 
-    def __init__(self, dirpath: str = os.curdir, names: typing.Callable[[str], typing.Iterable[str]] = sequence) -> None:
+    def __init__(self, dirpath: str = os.curdir, names: Callable[[str], Iterable[str]] = sequence) -> None:
         self._names = functools.lru_cache(maxsize=32)(names)
         self._path = makedirs(dirpath)
 

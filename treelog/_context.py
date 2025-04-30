@@ -10,7 +10,7 @@ class ContextLog:
     '''
 
     def __init__(self) -> None:
-        self.currentcontext = []  # type: typing.List[str]
+        self.currentcontext = []
 
     def pushcontext(self, title: str) -> None:
         self.currentcontext.append(title)
