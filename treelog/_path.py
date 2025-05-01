@@ -1,7 +1,7 @@
+from typing import Generator, Optional, IO, Any
 import functools
 import os
 import pathlib
-import typing
 
 
 supports_fd = os.open in os.supports_dir_fd
@@ -16,7 +16,7 @@ def makedirs(*pathsegments):
     return _FDDirPath(dir_fd)
 
 
-def sequence(filename: str) -> typing.Generator[str, None, None]:
+def sequence(filename: str) -> Generator[str, None, None]:
     '''Generate file names a.b, a-1.b, a-2.b, etc.'''
 
     yield filename
@@ -47,5 +47,5 @@ class _FDFilePath:
         self._directory = directory
         self._filename = filename
 
-    def open(self, mode: str, *, encoding: typing.Optional[str] = None) -> typing.IO[typing.Any]:
+    def open(self, mode: str, *, encoding: Optional[str] = None) -> IO[Any]:
         return open(self._filename, mode, encoding=encoding, opener=self._directory._opener)

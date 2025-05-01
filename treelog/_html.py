@@ -1,10 +1,10 @@
+from typing import Optional, Type
 import contextlib
 import hashlib
 import html
 import os
 import sys
 import types
-import typing
 import urllib.parse
 import warnings
 
@@ -15,7 +15,7 @@ from .proto import Level, Data
 class HtmlLog:
     '''Output html nested lists.'''
 
-    def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
+    def __init__(self, dirpath: str, *, filename: str = 'log.html', title: Optional[str] = None, htmltitle: Optional[str] = None, favicon: Optional[str] = None) -> None:
         self._path = makedirs(dirpath)
         for self.filename in sequence(filename):
             try:
@@ -36,26 +36,36 @@ class HtmlLog:
         self._file.write(HTMLHEAD.format(
             title=title, htmltitle=htmltitle, css=css, js=js, favicon=favicon))
         # active contexts that are not yet opened as html elements
-        self._unopened = []  # type: typing.List[str]
+        self._context = []
+        self._level = 0
 
-    def pushcontext(self, title: str) -> None:
-        self._unopened.append(title)
+    def pushcontext(self, title: str, length: Optional[int] = None) -> None:
+        self._context.append((title, None if length is None else 0))
+
+    def _close_div(self):
+        if self._level == len(self._context):
+            print('</div><div class="end"></div></div>', file=self._file)
+            self._level -= 1
+        return self._context.pop()
+
+    def _open_divs(self):
+        while self._level < len(self._context):
+            name, index = self._context[self._level]
+            name = html.escape(name)
+            if index is not None:
+                name += f' {index}'
+            print(f'<div class="context"><div class="title">{name}</div><div class="children">', file=self._file)
+            self._level += 1
 
     def popcontext(self) -> None:
-        if self._unopened:
-            self._unopened.pop()
-        else:
-            print('</div><div class="end"></div></div>', file=self._file)
+        self._close_div()
 
-    def recontext(self, title: str) -> None:
-        self.popcontext()
-        self.pushcontext(title)
+    def nextiter(self) -> None:
+        name, index = self._close_div()
+        self._context.append((name, index + 1))
 
     def write(self, msg, level: Level) -> None:
-        for c in self._unopened:
-            print('<div class="context"><div class="title">{}</div><div class="children">'.format(
-                html.escape(c)), file=self._file)
-        self._unopened.clear()
+        self._open_divs()
         if isinstance(msg, Data):
             _, ext = os.path.splitext(msg.name)
             filename = self._write_hash(msg.data, ext)
@@ -75,7 +85,7 @@ class HtmlLog:
     def __enter__(self) -> 'HtmlLog':
         return self
 
-    def __exit__(self, t: typing.Optional[typing.Type[BaseException]], value: typing.Optional[BaseException], traceback: typing.Optional[types.TracebackType]) -> None:
+    def __exit__(self, t: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[types.TracebackType]) -> None:
         self.close()
 
     def __del__(self) -> None:

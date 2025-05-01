@@ -1,6 +1,6 @@
+from typing import Callable, Iterable, Optional
 import functools
 import os
-import typing
 
 from ._path import makedirs, sequence
 from .proto import Level, Data
@@ -9,17 +9,17 @@ from .proto import Level, Data
 class DataLog:
     '''Output only data.'''
 
-    def __init__(self, dirpath: str = os.curdir, names: typing.Callable[[str], typing.Iterable[str]] = sequence) -> None:
+    def __init__(self, dirpath: str = os.curdir, names: Callable[[str], Iterable[str]] = sequence) -> None:
         self._names = functools.lru_cache(maxsize=32)(names)
         self._path = makedirs(dirpath)
 
-    def pushcontext(self, title: str) -> None:
+    def pushcontext(self, title: str, length: Optional[int] = None) -> None:
         pass
 
     def popcontext(self) -> None:
         pass
 
-    def recontext(self, title: str) -> None:
+    def nextiter(self) -> None:
         pass
 
     def write(self, msg, level: Level) -> None:

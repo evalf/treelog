@@ -1,3 +1,4 @@
+from typing import Optional
 import contextlib
 import os
 import tempfile
@@ -12,17 +13,17 @@ class TeeLog:
         self._baselog1 = baselog1
         self._baselog2 = baselog2
 
-    def pushcontext(self, title: str) -> None:
-        self._baselog1.pushcontext(title)
-        self._baselog2.pushcontext(title)
+    def pushcontext(self, title: str, length: Optional[int] = None) -> None:
+        self._baselog1.pushcontext(title, length)
+        self._baselog2.pushcontext(title, length)
 
     def popcontext(self) -> None:
         self._baselog1.popcontext()
         self._baselog2.popcontext()
 
-    def recontext(self, title: str) -> None:
-        self._baselog1.recontext(title)
-        self._baselog2.recontext(title)
+    def nextiter(self) -> None:
+        self._baselog1.nextiter()
+        self._baselog2.nextiter()
 
     def write(self, msg, level: Level) -> None:
         self._baselog1.write(msg, level)

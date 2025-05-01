@@ -13,6 +13,7 @@ _state_attrs = {
     'add',
     'disable',
     'context',
+    'itercontext',
     'withcontext',
 }
 _state_funcs = {
