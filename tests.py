@@ -38,12 +38,6 @@ class Log(unittest.TestCase):
 
     maxDiff = None
 
-    @contextlib.contextmanager
-    def assertSilent(self):
-        with capture() as captured:
-            yield
-        self.assertEqual(captured.stdout, '')
-
     @treelog.withcontext
     def generate_test(self):
         with treelog.warningfile('test.dat', 'wb') as f:
@@ -75,7 +69,7 @@ class Log(unittest.TestCase):
         treelog.warning('warn')
 
     def test_output(self):
-        with self.assertSilent(), self.output_tester() as log, treelog.set(log):
+        with self.output_tester() as log, treelog.set(log):
             self.generate()
 
 
@@ -83,9 +77,9 @@ class StdoutLog(Log):
 
     @contextlib.contextmanager
     def output_tester(self):
-        with capture() as captured:
-            yield treelog.StdoutLog()
-        self.assertEqual(captured.stdout,
+        f = io.StringIO()
+        yield treelog.StdoutLog(f)
+        self.assertEqual(f.getvalue(),
                          'my message\n'
                          'test.dat [5 bytes]\n'
                          'my context > iter 1 > a\n'
@@ -102,42 +96,15 @@ class StdoutLog(Log):
                          'dbg.jpg [image/jpg; 5 bytes]\n'
                          'dbg\n'
                          'warn\n')
-        self.assertEqual(captured.stderr, '')
-
-
-class StderrLog(Log):
-
-    @contextlib.contextmanager
-    def output_tester(self):
-        with capture() as captured:
-            yield treelog.StderrLog()
-        self.assertEqual(captured.stderr,
-                         'my message\n'
-                         'test.dat [5 bytes]\n'
-                         'my context > iter 1 > a\n'
-                         'my context > iter 2 > b\n'
-                         'my context > iter 3 > c\n'
-                         'my context > multiple..\n'
-                         '  ..lines\n'
-                         'my context > test.dat > generating\n'
-                         'my context > test.dat [5 bytes]\n'
-                         'generate_test > test.dat [5 bytes]\n'
-                         'context step=0 > foo\n'
-                         'context step=1 > bar\n'
-                         'same.dat [5 bytes]\n'
-                         'dbg.jpg [image/jpg; 5 bytes]\n'
-                         'dbg\n'
-                         'warn\n')
-        self.assertEqual(captured.stdout, '')
 
 
 class RichOutputLog(Log):
 
     @contextlib.contextmanager
     def output_tester(self):
-        with capture() as captured:
-            yield treelog.RichOutputLog()
-        self.assertEqual(captured.stdout,
+        f = io.StringIO()
+        yield treelog.RichOutputLog(f)
+        self.assertEqual(f.getvalue(),
                          '\x1b[1;34mmy message\x1b[0m\n'
                          'test.dat > '
                          '\r\x1b[K'
@@ -215,7 +182,7 @@ class HtmlLog(Log):
         with tempfile.TemporaryDirectory() as tmpdir:
             tests = ['b444ac06613fc8d63795be9ad0beaf55011936ac.dat', '109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat',
                      '3ebfa301dc59196f18593c45e519287a23297589.dat', '1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg']
-            with self.assertSilent(), treelog.HtmlLog(tmpdir, title='test') as htmllog:
+            with treelog.HtmlLog(tmpdir, title='test') as htmllog:
                 yield htmllog
             self.assertEqual(htmllog.filename, 'log.html')
             self.assertGreater(set(os.listdir(tmpdir)), {'log.html', *tests})
@@ -341,7 +308,7 @@ class RecordLog(Log):
     def test_replay_in_current(self):
         recordlog = treelog.RecordLog()
         recordlog.write('test', level=Level.info)
-        with self.assertSilent(), treelog.set(treelog.LoggingLog()), self.assertLogs('nutils'):
+        with treelog.set(treelog.LoggingLog()), self.assertLogs('nutils'):
             recordlog.replay()
 
 
@@ -385,7 +352,7 @@ class SimplifiedRecordLog(Log):
     def test_replay_in_current(self):
         recordlog = treelog.RecordLog()
         recordlog.write('test', level=Level.info)
-        with self.assertSilent(), treelog.set(treelog.LoggingLog()), self.assertLogs('nutils'):
+        with treelog.set(treelog.LoggingLog()), self.assertLogs('nutils'):
             recordlog.replay()
 
 
@@ -541,8 +508,7 @@ class NullLog(Log):
 
     @contextlib.contextmanager
     def output_tester(self):
-        with self.assertSilent():
-            yield treelog.NullLog()
+        yield treelog.NullLog()
 
     def test_disable(self):
         with treelog.disable():
@@ -687,19 +653,6 @@ class DocTest(unittest.TestCase):
 del Log  # hide from unittest discovery
 
 # INTERNALS
-
-
-@contextlib.contextmanager
-def capture():
-    with tempfile.TemporaryFile('w+', newline='') as stdout, tempfile.TemporaryFile('w+', newline='') as stderr:
-        class captured:
-            pass
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            yield captured
-        stdout.seek(0)
-        captured.stdout = stdout.read()
-        stderr.seek(0)
-        captured.stderr = stderr.read()
 
 
 @contextlib.contextmanager
