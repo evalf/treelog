@@ -18,149 +18,152 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import doctest
+import gc
+import io
+import os
+import tempfile
 import treelog
 import unittest
-import contextlib
-import tempfile
-import os
-import sys
-import hashlib
-import io
 import warnings
-import gc
-import doctest
 
 from treelog import _path, _state
 from treelog.proto import Level, Data
 
 
-class Log(unittest.TestCase):
+@treelog.withcontext
+def generate_test():
+    'decorated function for unit testing'
 
-    maxDiff = None
+    with treelog.warningfile('test.dat', 'wb') as f:
+        f.write(b'test3')
 
-    @treelog.withcontext
-    def generate_test(self):
-        with treelog.warningfile('test.dat', 'wb') as f:
-            f.write(b'test3')
 
-    def generate(self):
-        treelog.user('my message')
-        with treelog.infofile('test.dat', 'w') as f:
-            f.write('test1')
-        with treelog.context('my context'):
-            with treelog.iter.plain('iter', 'abc') as items:
-                for c in items:
-                    treelog.info(c)
-            with treelog.context('empty'):
-                pass
-            treelog.error('multiple..\n  ..lines')
-            with treelog.userfile('test.dat', 'wb') as f:
-                treelog.info('generating')
-                f.write(b'test2')
-        self.generate_test()
-        with treelog.context('context step={}', 0) as format:
-            treelog.info('foo')
-            format(1)
-            treelog.info('bar')
-        treelog.errordata('same.dat', b'test3')
-        with treelog.debugfile('dbg.jpg', 'wb', type='image/jpg') as f:
-            f.write(b'test4')
-        treelog.debug('dbg')
-        treelog.warning('warn')
+def generate():
+    'generate log events for unit testing'
+
+    treelog.user('my message')
+    with treelog.infofile('test.dat', 'w') as f:
+        f.write('test1')
+    with treelog.context('my context'):
+        with treelog.iter.plain('iter', 'abc') as items:
+            for c in items:
+                treelog.info(c)
+        with treelog.context('empty'):
+            pass
+        treelog.error('multiple..\n  ..lines')
+        with treelog.userfile('test.dat', 'wb') as f:
+            treelog.info('generating')
+            f.write(b'test2')
+    generate_test()
+    with treelog.context('context step={}', 0) as format:
+        treelog.info('foo')
+        format(1)
+        treelog.info('bar')
+    treelog.errordata('same.dat', b'test3')
+    with treelog.debugfile('dbg.jpg', 'wb', type='image/jpg') as f:
+        f.write(b'test4')
+    treelog.debug('dbg')
+    treelog.warning('warn')
+
+
+class StdoutLog(unittest.TestCase):
 
     def test_output(self):
-        with self.output_tester() as log, treelog.set(log):
-            self.generate()
-
-
-class StdoutLog(Log):
-
-    @contextlib.contextmanager
-    def output_tester(self):
         f = io.StringIO()
-        yield treelog.StdoutLog(f)
+        with treelog.set(treelog.StdoutLog(f)):
+            generate()
+        self.check_output(f)
+
+    def check_output(self, f):
         self.assertEqual(f.getvalue(),
-                         'my message\n'
-                         'test.dat [5 bytes]\n'
-                         'my context > iter 1 > a\n'
-                         'my context > iter 2 > b\n'
-                         'my context > iter 3 > c\n'
-                         'my context > multiple..\n'
-                         '  ..lines\n'
-                         'my context > test.dat > generating\n'
-                         'my context > test.dat [5 bytes]\n'
-                         'generate_test > test.dat [5 bytes]\n'
-                         'context step=0 > foo\n'
-                         'context step=1 > bar\n'
-                         'same.dat [5 bytes]\n'
-                         'dbg.jpg [image/jpg; 5 bytes]\n'
-                         'dbg\n'
-                         'warn\n')
+           'my message\n'
+           'test.dat [5 bytes]\n'
+           'my context > iter 1 > a\n'
+           'my context > iter 2 > b\n'
+           'my context > iter 3 > c\n'
+           'my context > multiple..\n'
+           '  ..lines\n'
+           'my context > test.dat > generating\n'
+           'my context > test.dat [5 bytes]\n'
+           'generate_test > test.dat [5 bytes]\n'
+           'context step=0 > foo\n'
+           'context step=1 > bar\n'
+           'same.dat [5 bytes]\n'
+           'dbg.jpg [image/jpg; 5 bytes]\n'
+           'dbg\n'
+           'warn\n')
 
 
-class RichOutputLog(Log):
+class RichOutputLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
+    def test_output(self):
         f = io.StringIO()
-        yield treelog.RichOutputLog(f)
+        with treelog.set(treelog.RichOutputLog(f)):
+            generate()
+        self.check_output(f)
+
+    def check_output(self, f):
         self.assertEqual(f.getvalue(),
-                         '\x1b[1;34mmy message\x1b[0m\n'
-                         'test.dat > '
-                         '\r\x1b[K'
-                         '\x1b[1mtest.dat [5 bytes]\x1b[0m\n'
-                         'my context > '
-                         'iter 0 '
-                         '> \x1b[4D1 > '
-                         '\x1b[1ma\x1b[0m\nmy context > iter 1 > '
-                         '\x1b[4D2 > '
-                         '\x1b[1mb\x1b[0m\nmy context > iter 2 > '
-                         '\x1b[4D3 > '
-                         '\x1b[1mc\x1b[0m\nmy context > iter 3 > '
-                         '\x1b[9D\x1b[K'
-                         'empty > '
-                         '\x1b[8D\x1b[K'
-                         '\x1b[1;31mmultiple..\n  ..lines\x1b[0m\nmy context > test.dat > '
-                         '\x1b[1mgenerating\x1b[0m\nmy context > test.dat > '
-                         '\x1b[11D\x1b[K'
-                         '\x1b[1;34mtest.dat [5 bytes]\x1b[0m\nmy context > '
-                         '\r\x1b[Kgenerate_test > test.dat > '
-                         '\x1b[11D\x1b[K'
-                         '\x1b[1;35mtest.dat [5 bytes]\x1b[0m\ngenerate_test > '
-                         '\r\x1b[K'
-                         'context step=0 > '
-                         '\x1b[1mfoo\x1b[0m\n'
-                         'context step=0 > '
-                         '\x1b[4D1 > '
-                         '\x1b[1mbar\x1b[0m\n'
-                         'context step=1 > '
-                         '\r\x1b[K'
-                         '\x1b[1;31msame.dat [5 bytes]\x1b[0m\n'
-                         'dbg.jpg > '
-                         '\r\x1b[K'
-                         '\x1b[1;30mdbg.jpg [image/jpg; 5 bytes]\x1b[0m\n'
-                         '\x1b[1;30mdbg\x1b[0m\n'
-                         '\x1b[1;35mwarn\x1b[0m\n')
+            '\x1b[1;34mmy message\x1b[0m\n'
+            'test.dat > '
+            '\r\x1b[K'
+            '\x1b[1mtest.dat [5 bytes]\x1b[0m\n'
+            'my context > '
+            'iter 0 '
+            '> \x1b[4D1 > '
+            '\x1b[1ma\x1b[0m\nmy context > iter 1 > '
+            '\x1b[4D2 > '
+            '\x1b[1mb\x1b[0m\nmy context > iter 2 > '
+            '\x1b[4D3 > '
+            '\x1b[1mc\x1b[0m\nmy context > iter 3 > '
+            '\x1b[9D\x1b[K'
+            'empty > '
+            '\x1b[8D\x1b[K'
+            '\x1b[1;31mmultiple..\n  ..lines\x1b[0m\nmy context > test.dat > '
+            '\x1b[1mgenerating\x1b[0m\nmy context > test.dat > '
+            '\x1b[11D\x1b[K'
+            '\x1b[1;34mtest.dat [5 bytes]\x1b[0m\nmy context > '
+            '\r\x1b[Kgenerate_test > test.dat > '
+            '\x1b[11D\x1b[K'
+            '\x1b[1;35mtest.dat [5 bytes]\x1b[0m\ngenerate_test > '
+            '\r\x1b[K'
+            'context step=0 > '
+            '\x1b[1mfoo\x1b[0m\n'
+            'context step=0 > '
+            '\x1b[4D1 > '
+            '\x1b[1mbar\x1b[0m\n'
+            'context step=1 > '
+            '\r\x1b[K'
+            '\x1b[1;31msame.dat [5 bytes]\x1b[0m\n'
+            'dbg.jpg > '
+            '\r\x1b[K'
+            '\x1b[1;30mdbg.jpg [image/jpg; 5 bytes]\x1b[0m\n'
+            '\x1b[1;30mdbg\x1b[0m\n'
+            '\x1b[1;35mwarn\x1b[0m\n')
 
 
-class DataLog(Log):
+class DataLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
+    def test_output(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            yield treelog.DataLog(tmpdir)
-            self.assertEqual(set(os.listdir(tmpdir)), {
-                             'test.dat', 'test-1.dat', 'test-2.dat', 'same.dat', 'dbg.jpg'})
-            with open(os.path.join(tmpdir, 'test.dat'), 'r') as f:
-                self.assertEqual(f.read(), 'test1')
-            with open(os.path.join(tmpdir, 'test-1.dat'), 'rb') as f:
-                self.assertEqual(f.read(), b'test2')
-            with open(os.path.join(tmpdir, 'test-2.dat'), 'rb') as f:
-                self.assertEqual(f.read(), b'test3')
-            with open(os.path.join(tmpdir, 'same.dat'), 'rb') as f:
-                self.assertEqual(f.read(), b'test3')
-            with open(os.path.join(tmpdir, 'dbg.jpg'), 'r') as f:
-                self.assertEqual(f.read(), 'test4')
+            with treelog.set(treelog.DataLog(tmpdir)):
+                generate()
+            self.check_output(tmpdir)
+
+    def check_output(self, tmpdir):
+        self.assertEqual(set(os.listdir(tmpdir)), {
+                         'test.dat', 'test-1.dat', 'test-2.dat', 'same.dat', 'dbg.jpg'})
+        with open(os.path.join(tmpdir, 'test.dat'), 'r') as f:
+            self.assertEqual(f.read(), 'test1')
+        with open(os.path.join(tmpdir, 'test-1.dat'), 'rb') as f:
+            self.assertEqual(f.read(), b'test2')
+        with open(os.path.join(tmpdir, 'test-2.dat'), 'rb') as f:
+            self.assertEqual(f.read(), b'test3')
+        with open(os.path.join(tmpdir, 'same.dat'), 'rb') as f:
+            self.assertEqual(f.read(), b'test3')
+        with open(os.path.join(tmpdir, 'dbg.jpg'), 'r') as f:
+            self.assertEqual(f.read(), 'test4')
 
     @unittest.skipIf(not _path.supports_fd, 'dir_fd not supported on platform')
     def test_move_outdir(self):
@@ -175,69 +178,71 @@ class DataLog(Log):
             self.assertEqual(os.listdir(outdira), [])
 
 
-class HtmlLog(Log):
+class HtmlLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
+    def test_output(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            tests = ['b444ac06613fc8d63795be9ad0beaf55011936ac.dat', '109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat',
-                     '3ebfa301dc59196f18593c45e519287a23297589.dat', '1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg']
-            with treelog.HtmlLog(tmpdir, title='test') as htmllog:
-                yield htmllog
-            self.assertEqual(htmllog.filename, 'log.html')
-            self.assertGreater(set(os.listdir(tmpdir)), {'log.html', *tests})
-            with open(os.path.join(tmpdir, 'log.html'), 'r') as f:
-                lines = f.readlines()
-            self.assertIn('<body>\n', lines)
-            self.assertEqual(lines[lines.index('<body>\n'):], [
-                '<body>\n',
-                '<div id="header"><div id="bar"><div id="text"><div id="title">test</div></div></div></div>\n',
-                '<div id="log">\n',
-                '<div class="item" data-loglevel="2">my message</div>\n',
-                '<div class="item" data-loglevel="1"><a href="b444ac06613fc8d63795be9ad0beaf55011936ac.dat" download="test.dat">test.dat</a></div>\n',
-                '<div class="context"><div class="title">my context</div><div class="children">\n',
-                '<div class="context"><div class="title">iter 1</div><div class="children">\n',
-                '<div class="item" data-loglevel="1">a</div>\n',
-                '</div><div class="end"></div></div>\n',
-                '<div class="context"><div class="title">iter 2</div><div class="children">\n',
-                '<div class="item" data-loglevel="1">b</div>\n',
-                '</div><div class="end"></div></div>\n',
-                '<div class="context"><div class="title">iter 3</div><div class="children">\n',
-                '<div class="item" data-loglevel="1">c</div>\n',
-                '</div><div class="end"></div></div>\n',
-                '<div class="item" data-loglevel="4">multiple..\n',
-                '  ..lines</div>\n',
-                '<div class="context"><div class="title">test.dat</div><div class="children">\n',
-                '<div class="item" data-loglevel="1">generating</div>\n',
-                '</div><div class="end"></div></div>\n',
-                '<div class="item" data-loglevel="2"><a href="109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat" download="test.dat">test.dat</a></div>\n',
-                '</div><div class="end"></div></div>\n',
-                '<div class="context"><div class="title">generate_test</div><div class="children">\n',
-                '<div class="item" data-loglevel="3"><a href="3ebfa301dc59196f18593c45e519287a23297589.dat" download="test.dat">test.dat</a></div>\n',
-                '</div><div class="end"></div></div>\n',
-                '<div class="context"><div class="title">context step=0</div><div '
-                'class="children">\n',
-                '<div class="item" data-loglevel="1">foo</div>\n',
-                '</div><div class="end"></div></div>\n',
-                '<div class="context"><div class="title">context step=1</div><div '
-                'class="children">\n',
-                '<div class="item" data-loglevel="1">bar</div>\n',
-                '</div><div class="end"></div></div>\n',
-                '<div class="item" data-loglevel="4"><a href="3ebfa301dc59196f18593c45e519287a23297589.dat" download="same.dat">same.dat</a></div>\n',
-                '<div class="item" data-loglevel="0"><a href="1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg" download="dbg.jpg">dbg.jpg</a></div>\n',
-                '<div class="item" data-loglevel="0">dbg</div>\n',
-                '<div class="item" data-loglevel="3">warn</div>\n',
-                '</div></body></html>\n'])
-            for i, test in enumerate(tests, 1):
-                with open(os.path.join(tmpdir, test), 'rb') as f:
-                    self.assertEqual(f.read(), b'test%i' % i)
+            with treelog.HtmlLog(tmpdir, title='test') as htmllog, treelog.set(htmllog):
+                generate()
+            self.check_output(tmpdir, htmllog.filename)
+
+    def check_output(self, tmpdir, filename):
+        tests = ['b444ac06613fc8d63795be9ad0beaf55011936ac.dat', '109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat',
+                 '3ebfa301dc59196f18593c45e519287a23297589.dat', '1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg']
+        self.assertEqual(filename, 'log.html')
+        self.assertGreater(set(os.listdir(tmpdir)), {'log.html', *tests})
+        with open(os.path.join(tmpdir, 'log.html'), 'r') as f:
+            lines = f.readlines()
+        self.assertIn('<body>\n', lines)
+        self.assertEqual(lines[lines.index('<body>\n'):], [
+            '<body>\n',
+            '<div id="header"><div id="bar"><div id="text"><div id="title">test</div></div></div></div>\n',
+            '<div id="log">\n',
+            '<div class="item" data-loglevel="2">my message</div>\n',
+            '<div class="item" data-loglevel="1"><a href="b444ac06613fc8d63795be9ad0beaf55011936ac.dat" download="test.dat">test.dat</a></div>\n',
+            '<div class="context"><div class="title">my context</div><div class="children">\n',
+            '<div class="context"><div class="title">iter 1</div><div class="children">\n',
+            '<div class="item" data-loglevel="1">a</div>\n',
+            '</div><div class="end"></div></div>\n',
+            '<div class="context"><div class="title">iter 2</div><div class="children">\n',
+            '<div class="item" data-loglevel="1">b</div>\n',
+            '</div><div class="end"></div></div>\n',
+            '<div class="context"><div class="title">iter 3</div><div class="children">\n',
+            '<div class="item" data-loglevel="1">c</div>\n',
+            '</div><div class="end"></div></div>\n',
+            '<div class="item" data-loglevel="4">multiple..\n',
+            '  ..lines</div>\n',
+            '<div class="context"><div class="title">test.dat</div><div class="children">\n',
+            '<div class="item" data-loglevel="1">generating</div>\n',
+            '</div><div class="end"></div></div>\n',
+            '<div class="item" data-loglevel="2"><a href="109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat" download="test.dat">test.dat</a></div>\n',
+            '</div><div class="end"></div></div>\n',
+            '<div class="context"><div class="title">generate_test</div><div class="children">\n',
+            '<div class="item" data-loglevel="3"><a href="3ebfa301dc59196f18593c45e519287a23297589.dat" download="test.dat">test.dat</a></div>\n',
+            '</div><div class="end"></div></div>\n',
+            '<div class="context"><div class="title">context step=0</div><div '
+            'class="children">\n',
+            '<div class="item" data-loglevel="1">foo</div>\n',
+            '</div><div class="end"></div></div>\n',
+            '<div class="context"><div class="title">context step=1</div><div '
+            'class="children">\n',
+            '<div class="item" data-loglevel="1">bar</div>\n',
+            '</div><div class="end"></div></div>\n',
+            '<div class="item" data-loglevel="4"><a href="3ebfa301dc59196f18593c45e519287a23297589.dat" download="same.dat">same.dat</a></div>\n',
+            '<div class="item" data-loglevel="0"><a href="1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg" download="dbg.jpg">dbg.jpg</a></div>\n',
+            '<div class="item" data-loglevel="0">dbg</div>\n',
+            '<div class="item" data-loglevel="3">warn</div>\n',
+            '</div></body></html>\n'])
+        for i, test in enumerate(tests, 1):
+            with open(os.path.join(tmpdir, test), 'rb') as f:
+                self.assertEqual(f.read(), b'test%i' % i)
 
     @unittest.skipIf(not _path.supports_fd, 'dir_fd not supported on platform')
     def test_move_outdir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outdira = os.path.join(tmpdir, 'a')
             outdirb = os.path.join(tmpdir, 'b')
-            with silent(), treelog.HtmlLog(outdira) as log:
+            with treelog.HtmlLog(outdira) as log:
                 os.rename(outdira, outdirb)
                 os.mkdir(outdira)
                 log.write(Data('dat', b''), Level.info)
@@ -246,24 +251,45 @@ class HtmlLog(Log):
 
     def test_filename_sequence(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with silent(), treelog.HtmlLog(tmpdir) as log:
+            with treelog.HtmlLog(tmpdir) as log:
                 pass
             self.assertTrue(os.path.exists(os.path.join(tmpdir, 'log.html')))
-            with silent(), treelog.HtmlLog(tmpdir) as log:
+            with treelog.HtmlLog(tmpdir) as log:
                 pass
             self.assertTrue(os.path.exists(os.path.join(tmpdir, 'log-1.html')))
-            with silent(), treelog.HtmlLog(tmpdir) as log:
+            with treelog.HtmlLog(tmpdir) as log:
                 pass
             self.assertTrue(os.path.exists(os.path.join(tmpdir, 'log-2.html')))
 
 
-class RecordLog(Log):
+class RecordLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
-        recordlog = treelog.RecordLog(simplify=False)
-        yield recordlog
-        self.assertEqual(recordlog._messages, [
+    simplify = False
+
+    def test_output(self):
+        recordlog = treelog.RecordLog(simplify=self.simplify)
+        with treelog.set(recordlog):
+            generate()
+        self.check_output(recordlog._messages)
+        with self.subTest('replay to StdoutLog'):
+            f = io.StringIO()
+            recordlog.replay(treelog.StdoutLog(f))
+            StdoutLog.check_output(self, f)
+        with self.subTest('replay to DataLog'), tempfile.TemporaryDirectory() as tmpdir:
+            recordlog.replay(treelog.DataLog(tmpdir))
+            DataLog.check_output(self, tmpdir)
+        with self.subTest('replay to HtmlLog'), tempfile.TemporaryDirectory() as tmpdir:
+            with treelog.HtmlLog(tmpdir, title='test') as htmllog:
+                recordlog.replay(htmllog)
+            HtmlLog.check_output(self, tmpdir, htmllog.filename)
+        if not self.simplify:
+            with self.subTest('replay to RichOutputLog'):
+                f = io.StringIO()
+                recordlog.replay(treelog.RichOutputLog(f))
+                RichOutputLog.check_output(self, f)
+
+    def check_output(self, messages):
+        self.assertEqual(messages, [
             ('write', 'my message', Level.user),
             ('pushcontext', 'test.dat'),
             ('popcontext',),
@@ -301,24 +327,20 @@ class RecordLog(Log):
             ('write', Data('dbg.jpg', b'test4', type='image/jpg'), Level.debug),
             ('write', 'dbg', Level.debug),
             ('write', 'warn', Level.warning)])
-        for Log in StdoutLog, DataLog, HtmlLog, RichOutputLog:
-            with self.subTest('replay to {}'.format(Log.__name__)), Log.output_tester(self) as log:
-                recordlog.replay(log)
 
     def test_replay_in_current(self):
-        recordlog = treelog.RecordLog()
+        recordlog = treelog.RecordLog(simplify=self.simplify)
         recordlog.write('test', level=Level.info)
         with treelog.set(treelog.LoggingLog()), self.assertLogs('nutils'):
             recordlog.replay()
 
 
-class SimplifiedRecordLog(Log):
+class SimplifiedRecordLog(RecordLog):
 
-    @contextlib.contextmanager
-    def output_tester(self):
-        recordlog = treelog.RecordLog(simplify=True)
-        yield recordlog
-        self.assertEqual(recordlog._messages, [
+    simplify = True
+
+    def check_output(self, messages):
+        self.assertEqual(messages, [
             ('write', 'my message', Level.user),
             ('write', Data('test.dat', b'test1'), Level.info),
             ('pushcontext', 'my context'),
@@ -345,54 +367,24 @@ class SimplifiedRecordLog(Log):
             ('write', Data('dbg.jpg', b'test4', type='image/jpg'), Level.debug),
             ('write', 'dbg', Level.debug),
             ('write', 'warn', Level.warning)])
-        for Log in StdoutLog, DataLog, HtmlLog:
-            with self.subTest('replay to {}'.format(Log.__name__)), Log.output_tester(self) as log:
-                recordlog.replay(log)
-
-    def test_replay_in_current(self):
-        recordlog = treelog.RecordLog()
-        recordlog.write('test', level=Level.info)
-        with treelog.set(treelog.LoggingLog()), self.assertLogs('nutils'):
-            recordlog.replay()
 
 
-class TeeLogTestLog:
+class TeeLog(unittest.TestCase):
 
-    def __init__(self, dir, update, filenos):
-        self._dir = dir
-        self._update = update
-        self.filenos = filenos
-
-    def pushcontext(self, title):
-        pass
-
-    def popcontext(self):
-        pass
-
-    def recontext(self, title):
-        pass
-
-    def write(self, text, level):
-        pass
-
-    @contextlib.contextmanager
-    def open(self, filename, mode, level):
-        with open(os.path.join(self._dir, filename), mode+'+' if self._update else mode) as f:
-            self.filenos.add(f.fileno())
-            try:
-                yield f
-            finally:
-                self.filenos.remove(f.fileno())
-
-
-class TeeLog(Log):
-
-    @contextlib.contextmanager
-    def output_tester(self):
-        with DataLog.output_tester(self) as datalog, \
-                RecordLog.output_tester(self) as recordlog, \
-                RichOutputLog.output_tester(self) as richoutputlog:
-            yield treelog.TeeLog(richoutputlog, treelog.TeeLog(datalog, recordlog))
+    def test_output(self):
+        f = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            datalog = treelog.DataLog(tmpdir)
+            recordlog = treelog.RecordLog(simplify=False)
+            richoutputlog = treelog.RichOutputLog(f)
+            with treelog.set(treelog.TeeLog(richoutputlog, treelog.TeeLog(datalog, recordlog))):
+                generate()
+            with self.subTest('DataLog'):
+                DataLog.check_output(self, tmpdir)
+            with self.subTest('RecordLog'):
+                RecordLog.check_output(self, recordlog._messages)
+            with self.subTest('RichOutputLog'):
+                RichOutputLog.check_output(self, f)
 
     def test_open_datalog_datalog_samedir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -405,13 +397,16 @@ class TeeLog(Log):
                 self.assertEqual(f.read(), b'test')
 
 
-class FilterMinLog(Log):
+class FilterMinLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
+    def test_output(self):
         recordlog = treelog.RecordLog()
-        yield treelog.FilterLog(recordlog, minlevel=Level.user)
-        self.assertEqual(recordlog._messages, [
+        with treelog.set(treelog.FilterLog(recordlog, minlevel=Level.user)):
+            generate()
+        self.check_output(recordlog._messages)
+
+    def check_output(self, messages):
+        self.assertEqual(messages, [
             ('write', 'my message', Level.user),
             ('pushcontext', 'my context'),
             ('write', 'multiple..\n  ..lines', Level.error),
@@ -423,13 +418,16 @@ class FilterMinLog(Log):
             ('write', 'warn', Level.warning)])
 
 
-class FilterMaxLog(Log):
+class FilterMaxLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
+    def test_output(self):
         recordlog = treelog.RecordLog()
-        yield treelog.FilterLog(recordlog, maxlevel=Level.user)
-        self.assertEqual(recordlog._messages, [
+        with treelog.set(treelog.FilterLog(recordlog, maxlevel=Level.user)):
+            generate()
+        self.check_output(recordlog._messages)
+
+    def check_output(self, messages):
+        self.assertEqual(messages, [
             ('write', 'my message', Level.user),
             ('write', Data('test.dat', b'test1'), Level.info),
             ('pushcontext', 'my context'),
@@ -452,13 +450,16 @@ class FilterMaxLog(Log):
             ('write', 'dbg', Level.debug)])
 
 
-class FilterMinMaxLog(Log):
+class FilterMinMaxLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
+    def test_output(self):
         recordlog = treelog.RecordLog()
-        yield treelog.FilterLog(recordlog, minlevel=Level.info, maxlevel=Level.warning)
-        self.assertEqual(recordlog._messages, [
+        with treelog.set(treelog.FilterLog(recordlog, minlevel=Level.info, maxlevel=Level.warning)):
+            generate()
+        self.check_output(recordlog._messages)
+
+    def check_output(self, messages):
+        self.assertEqual(messages, [
             ('write', 'my message', Level.user),
             ('write', Data('test.dat', b'test1'), Level.info),
             ('pushcontext', 'my context'),
@@ -482,13 +483,15 @@ class FilterMinMaxLog(Log):
             ('write', 'warn', Level.warning)])
 
 
-class LoggingLog(Log):
+class LoggingLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
-        with self.assertLogs('nutils') as cm:
-            yield treelog.LoggingLog()
-        self.assertEqual(cm.output, [
+    def test_output(self):
+        with self.assertLogs('nutils') as cm, treelog.set(treelog.LoggingLog()):
+            generate()
+        self.check_output(cm.output)
+
+    def check_output(self, output):
+        self.assertEqual(output, [
             'Level 25:nutils:my message',
             'INFO:nutils:test.dat [5 bytes]',
             'INFO:nutils:my context > iter 1 > a',
@@ -504,11 +507,11 @@ class LoggingLog(Log):
             'WARNING:nutils:warn'])
 
 
-class NullLog(Log):
+class NullLog(unittest.TestCase):
 
-    @contextlib.contextmanager
-    def output_tester(self):
-        yield treelog.NullLog()
+    def test_output(self):
+        with treelog.set(treelog.NullLog()):
+            generate()
 
     def test_disable(self):
         with treelog.disable():
@@ -650,14 +653,4 @@ class DocTest(unittest.TestCase):
         doctest.testmod(treelog)
 
 
-del Log  # hide from unittest discovery
-
-# INTERNALS
-
-
-@contextlib.contextmanager
-def silent():
-    with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
-        yield
-
-# vim:sw=2:sts=2:et
+# vim:sw=4:sts=4:et
