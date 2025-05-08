@@ -28,7 +28,6 @@ _log_objs = {
     'NullLog',
     'RecordLog',
     'RichOutputLog',
-    'StderrLog',
     'StdoutLog',
     'TeeLog',
 }

@@ -15,9 +15,10 @@ class RichOutputLog(ContextLog):
         '\033[1;35m',  # warning: bold purple
         '\033[1;31m')  # error: bold red
 
-    def __init__(self) -> None:
+    def __init__(self, file=sys.stdout) -> None:
         super().__init__()
         self._current = ''  # currently printed context
+        self.file = file
         set_ansi_console()
 
     def contextchangedhook(self) -> None:
@@ -34,12 +35,12 @@ class RichOutputLog(ContextLog):
             items.append(_current[n:])
         if len(_current) < len(self._current):
             items.append('\033[K')
-        sys.stdout.write(''.join(items))
-        sys.stdout.flush()
+        self.file.write(''.join(items))
+        self.file.flush()
         self._current = _current
 
     def write(self, msg, level: Level) -> None:
-        sys.stdout.write(
+        self.file.write(
             ''.join([self._cmap[level.value], str(msg), '\033[0m\n', self._current]))
 
 
