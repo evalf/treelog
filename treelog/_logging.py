@@ -1,20 +1,27 @@
 import logging
-import typing
 
-from ._context import ContextLog
-from .proto import Level
+from .proto import Level, oldproto
 
 
-class LoggingLog(ContextLog):
-    '''Log to Python's built-in logging facility.'''
+def LoggingLog(name: str = 'nutils'):
+    return _LoggingLog(logging.getLogger(name), prefix='')
 
-    # type: typing.ClassVar[typing.Tuple[int, int, int, int, int]]
+
+@oldproto.fromnew
+class _LoggingLog:
+    '''Output plain text to stream.'''
+
     _levels = logging.DEBUG, logging.INFO, 25, logging.WARNING, logging.ERROR
 
-    def __init__(self, name: str = 'nutils') -> None:
-        self._logger = logging.getLogger(name)
-        super().__init__()
+    def __init__(self, logger, prefix):
+        self._logger = logger
+        self._prefix = prefix
 
-    def write(self, msg, level: Level, data: typing.Optional[bytes] = None) -> None:
-        self._logger.log(self._levels[level.value], ' > '.join(
-            (*self.currentcontext, str(msg))))
+    def branch(self, title):
+        return self.__class__(self._logger, self._prefix + title + ' > ')
+
+    def write(self, msg, level) -> None:
+        self._logger.log(self._levels[level.value], self._prefix + str(msg))
+
+    def close(self):
+        pass
