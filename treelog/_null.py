@@ -1,16 +1,14 @@
-from .proto import Level
+from .proto import Level, oldproto
 
 
+@oldproto.fromnew
 class NullLog:
 
-    def pushcontext(self, title: str) -> None:
-        pass
-
-    def popcontext(self) -> None:
-        pass
-
-    def recontext(self, title: str) -> None:
-        pass
+    def branch(self, title: str):
+        return self
 
     def write(self, msg, level: Level) -> None:
+        pass
+
+    def close(self) -> None:
         pass
