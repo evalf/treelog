@@ -104,43 +104,64 @@ class RichOutputLog(unittest.TestCase):
         self.check_output(f)
 
     def check_output(self, f):
-        self.assertEqual(f.getvalue(),
-            '\x1b[1;34mmy message\x1b[0m\n'
-            'test.dat > '
-            '\r\x1b[K'
-            '\x1b[1mtest.dat [5 bytes]\x1b[0m\n'
-            'my context > '
-            'iter 0 '
-            '> \x1b[4D1 > '
-            '\x1b[1ma\x1b[0m\nmy context > iter 1 > '
-            '\x1b[4D2 > '
-            '\x1b[1mb\x1b[0m\nmy context > iter 2 > '
-            '\x1b[4D3 > '
-            '\x1b[1mc\x1b[0m\nmy context > iter 3 > '
-            '\x1b[9D\x1b[K'
-            'empty > '
-            '\x1b[8D\x1b[K'
-            '\x1b[1;31mmultiple..\n  ..lines\x1b[0m\nmy context > test.dat > '
-            '\x1b[1mgenerating\x1b[0m\nmy context > test.dat > '
-            '\x1b[11D\x1b[K'
-            '\x1b[1;34mtest.dat [5 bytes]\x1b[0m\nmy context > '
-            '\r\x1b[Kgenerate_test > test.dat > '
-            '\x1b[11D\x1b[K'
-            '\x1b[1;35mtest.dat [5 bytes]\x1b[0m\ngenerate_test > '
-            '\r\x1b[K'
-            'context step=0 > '
-            '\x1b[1mfoo\x1b[0m\n'
-            'context step=0 > '
-            '\x1b[4D1 > '
-            '\x1b[1mbar\x1b[0m\n'
-            'context step=1 > '
-            '\r\x1b[K'
-            '\x1b[1;31msame.dat [5 bytes]\x1b[0m\n'
-            'dbg.jpg > '
-            '\r\x1b[K'
-            '\x1b[1;30mdbg.jpg [image/jpg; 5 bytes]\x1b[0m\n'
-            '\x1b[1;30mdbg\x1b[0m\n'
-            '\x1b[1;35mwarn\x1b[0m\n')
+        self.assertEqual(f.getvalue().split('\r'), ['',
+            '\x1b[K',
+            '\x1b[1;34mmy message\x1b[0m\x1b[K\n',
+            '\x1b[K',
+            'test.dat > \x1b[K',
+            '\x1b[K',
+            '\x1b[1mtest.dat [5 bytes]\x1b[0m\x1b[K\n',
+            '\x1b[K',
+            'my context > \x1b[K',
+            'my context > iter 0 > \x1b[K',
+            'my context > \x1b[K',
+            'my context > iter 1 > \x1b[K',
+            'my context > iter 1 > \x1b[1ma\x1b[0m\x1b[K\n',
+            'my context > iter 1 > \x1b[K',
+            'my context > \x1b[K',
+            'my context > iter 2 > \x1b[K',
+            'my context > iter 2 > \x1b[1mb\x1b[0m\x1b[K\n',
+            'my context > iter 2 > \x1b[K',
+            'my context > \x1b[K',
+            'my context > iter 3 > \x1b[K',
+            'my context > iter 3 > \x1b[1mc\x1b[0m\x1b[K\n',
+            'my context > iter 3 > \x1b[K',
+            'my context > \x1b[K',
+            'my context > empty > \x1b[K',
+            'my context > \x1b[K',
+            'my context > \x1b[1;31mmultiple..\n  ..lines\x1b[0m\x1b[K\n',
+            'my context > \x1b[K',
+            'my context > test.dat > \x1b[K',
+            'my context > test.dat > \x1b[1mgenerating\x1b[0m\x1b[K\n',
+            'my context > test.dat > \x1b[K',
+            'my context > \x1b[K',
+            'my context > \x1b[1;34mtest.dat [5 bytes]\x1b[0m\x1b[K\n',
+            'my context > \x1b[K',
+            '\x1b[K',
+            'generate_test > \x1b[K',
+            'generate_test > test.dat > \x1b[K',
+            'generate_test > \x1b[K',
+            'generate_test > \x1b[1;35mtest.dat [5 bytes]\x1b[0m\x1b[K\n',
+            'generate_test > \x1b[K',
+            '\x1b[K',
+            'context step=0 > \x1b[K',
+            'context step=0 > \x1b[1mfoo\x1b[0m\x1b[K\n',
+            'context step=0 > \x1b[K',
+            '\x1b[K',
+            'context step=1 > \x1b[K',
+            'context step=1 > \x1b[1mbar\x1b[0m\x1b[K\n',
+            'context step=1 > \x1b[K',
+            '\x1b[K',
+            '\x1b[1;31msame.dat [5 bytes]\x1b[0m\x1b[K\n',
+            '\x1b[K',
+            'dbg.jpg > \x1b[K',
+            '\x1b[K',
+            '\x1b[1;30mdbg.jpg [image/jpg; 5 bytes]\x1b[0m\x1b[K\n',
+            '\x1b[K',
+            '\x1b[1;30mdbg\x1b[0m\x1b[K\n',
+            '\x1b[K',
+            '\x1b[1;35mwarn\x1b[0m\x1b[K\n',
+            '\x1b[K'])
 
 
 class DataLog(unittest.TestCase):
