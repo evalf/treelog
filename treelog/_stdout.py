@@ -1,15 +1,21 @@
 import sys
 
-from . import proto
-from ._context import ContextLog
+from .proto import Level, oldproto
 
 
-class StdoutLog(ContextLog):
+@oldproto.fromnew
+class StdoutLog:
     '''Output plain text to stream.'''
 
-    def __init__(self, file=sys.stdout):
+    def __init__(self, file=sys.stdout, prefix=''):
         self.file = file
-        super().__init__()
+        self.prefix = prefix
 
-    def write(self, msg, level: proto.Level) -> None:
-        print(*self.currentcontext, msg, sep=' > ', file=self.file)
+    def branch(self, title):
+        return self.__class__(self.file, self.prefix + title + ' > ')
+
+    def write(self, msg, level: Level) -> None:
+        print(self.prefix, msg, sep='', file=self.file, flush=True)
+
+    def close(self):
+        pass
