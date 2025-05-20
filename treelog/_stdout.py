@@ -1,26 +1,25 @@
 import sys
 
-from . import proto
+from .proto import Level, oldproto
 
 
+@oldproto.fromnew
 class StdoutLog:
     """Output plain text to stream."""
 
-    def __init__(self, file=sys.stdout):
+    def __init__(self, file=sys.stdout, prefix=""):
         self.file = file
-        self.currentcontext = []  # type: typing.List[str]
+        self.prefix = prefix
 
-    def pushcontext(self, title: str) -> None:
-        self.currentcontext.append(title + " > ")
+    def branch(self, title):
+        return self.__class__(self.file, self.prefix + title + " > ")
 
-    def popcontext(self) -> None:
-        self.currentcontext.pop()
+    def write(self, msg, level: Level) -> None:
+        if self.prefix:
+            msg = self.prefix + str(msg).replace(
+                "\n", "\n" + " > ".rjust(len(self.prefix))
+            )
+        print(msg, file=self.file, flush=True)
 
-    def recontext(self, title: str) -> None:
-        self.currentcontext[-1] = title + " > "
-
-    def write(self, msg, level: proto.Level) -> None:
-        if self.currentcontext:
-            prefix = "".join(self.currentcontext)
-            msg = prefix + str(msg).replace("\n", "\n" + " > ".rjust(len(prefix)))
-        print(msg, file=self.file)
+    def close(self):
+        pass
