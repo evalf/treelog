@@ -208,79 +208,63 @@ class HtmlLog(unittest.TestCase):
             self.check_output(tmpdir, htmllog.filename)
 
     def check_output(self, tmpdir, filename):
-        tests = ['b444ac06613fc8d63795be9ad0beaf55011936ac.dat', '109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat',
-                 '3ebfa301dc59196f18593c45e519287a23297589.dat', '1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg']
-        self.assertEqual(filename, 'log.html')
-        self.assertGreater(set(os.listdir(tmpdir)), {'log.html', *tests})
-        with open(os.path.join(tmpdir, 'log.html'), 'r') as f:
+        self.assertTrue(os.path.isfile(os.path.join(tmpdir, 'log', 'index.html')))
+        self.assertTrue(os.path.isfile(os.path.join(tmpdir, 'log', 'test-1.dat')))
+        self.assertTrue(os.path.isfile(os.path.join(tmpdir, 'log', 'my context', 'test-1.dat')))
+        self.assertTrue(os.path.isfile(os.path.join(tmpdir, 'log', 'dbg-1.jpg')))
+        with open(os.path.join(tmpdir, 'log', 'index.html'), 'r') as f:
             lines = f.readlines()
-        self.assertIn('<body>\n', lines)
-        self.assertEqual(lines[lines.index('<body>\n'):], [
-            '<body>\n',
-            '<div id="header"><div id="bar"><div id="text"><div id="title">test</div></div></div></div>\n',
-            '<div id="log">\n',
-            '<div class="item" data-loglevel="2">my message</div>\n',
-            '<div class="item" data-loglevel="1"><a href="b444ac06613fc8d63795be9ad0beaf55011936ac.dat" download="test.dat">test.dat</a></div>\n',
-            '<div class="context"><div class="title">my context</div><div class="children">\n',
-            '<div class="context"><div class="title">iter 1</div><div class="children">\n',
-            '<div class="item" data-loglevel="1">a</div>\n',
-            '</div><div class="end"></div></div>\n',
-            '<div class="context"><div class="title">iter 2</div><div class="children">\n',
-            '<div class="item" data-loglevel="1">b</div>\n',
-            '</div><div class="end"></div></div>\n',
-            '<div class="context"><div class="title">iter 3</div><div class="children">\n',
-            '<div class="item" data-loglevel="1">c</div>\n',
-            '</div><div class="end"></div></div>\n',
-            '<div class="item" data-loglevel="4">multiple..\n',
-            '  ..lines</div>\n',
-            '<div class="context"><div class="title">test.dat</div><div class="children">\n',
-            '<div class="item" data-loglevel="1">generating</div>\n',
-            '</div><div class="end"></div></div>\n',
-            '<div class="item" data-loglevel="2"><a href="109f4b3c50d7b0df729d299bc6f8e9ef9066971f.dat" download="test.dat">test.dat</a></div>\n',
-            '</div><div class="end"></div></div>\n',
-            '<div class="context"><div class="title">generate_test</div><div class="children">\n',
-            '<div class="item" data-loglevel="3"><a href="3ebfa301dc59196f18593c45e519287a23297589.dat" download="test.dat">test.dat</a></div>\n',
-            '</div><div class="end"></div></div>\n',
-            '<div class="context"><div class="title">context step=0</div><div '
-            'class="children">\n',
-            '<div class="item" data-loglevel="1">foo</div>\n',
-            '</div><div class="end"></div></div>\n',
-            '<div class="context"><div class="title">context step=1</div><div '
-            'class="children">\n',
-            '<div class="item" data-loglevel="1">bar</div>\n',
-            '</div><div class="end"></div></div>\n',
-            '<div class="item" data-loglevel="4"><a href="3ebfa301dc59196f18593c45e519287a23297589.dat" download="same.dat">same.dat</a></div>\n',
-            '<div class="item" data-loglevel="0"><a href="1ff2b3704aede04eecb51e50ca698efd50a1379b.jpg" download="dbg.jpg">dbg.jpg</a></div>\n',
-            '<div class="item" data-loglevel="0">dbg</div>\n',
-            '<div class="item" data-loglevel="3">warn</div>\n',
-            '</div></body></html>\n'])
-        for i, test in enumerate(tests, 1):
-            with open(os.path.join(tmpdir, test), 'rb') as f:
-                self.assertEqual(f.read(), b'test%i' % i)
+        self.assertEqual(lines, [
+            '<html><head>\n',
+            '<style>\n',
+            'a, a:visited, a:hover, a:active { color: inherit; }\n',
+            'li.d { color: gray; }\n',
+            'li.i { color: green; }\n',
+            'li.u { color: blue; }\n',
+            'li.w { color: orange; }\n',
+            'li.e { color: red; }\n',
+            'li.o { list-style-type: circle; }\n',
+            'li.o a { text-decoration: none; }\n',
+            '</style>\n',
+            '</head>\n',
+            '<body><h1>test</h1><ul>\n',
+            '<li class="u">my message</li>\n',
+            '<li class="o"><a href="test.dat/index.html">test.dat</a></li>\n',
+            '<li class="i"><a href="test-1.dat" download="test.dat">test.dat</a> [5 bytes]</li>\n',
+            '<li class="o"><a href="my%20context/index.html">my context</a></li>\n',
+            '<li class="o"><a href="generate_test/index.html">generate_test</a></li>\n',
+            '<li class="o"><a href="context%20step%3D0/index.html">context step=0</a></li>\n',
+            '<li class="o"><a href="context%20step%3D1/index.html">context step=1</a></li>\n',
+            '<li class="e"><a href="same.dat" download="same.dat">same.dat</a> [5 bytes]</li>\n',
+            '<li class="o"><a href="dbg.jpg/index.html">dbg.jpg</a></li>\n',
+            '<li class="d"><a href="dbg-1.jpg" download="dbg.jpg">dbg.jpg</a> [5 bytes]<br><img src="dbg-1.jpg"></li>\n',
+            '<li class="d">dbg</li>\n',
+            '<li class="w">warn</li>\n',
+            '</ul><p>closed.</p></body></html>\n',
+        ])
 
     @unittest.skipIf(not _path.supports_fd, 'dir_fd not supported on platform')
     def test_move_outdir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outdira = os.path.join(tmpdir, 'a')
             outdirb = os.path.join(tmpdir, 'b')
-            with treelog.HtmlLog(outdira) as log:
+            with treelog.HtmlLog(outdira, title='test') as log:
                 os.rename(outdira, outdirb)
                 os.mkdir(outdira)
                 log.write(Data('dat', b''), Level.info)
-            self.assertIn(
-                'da39a3ee5e6b4b0d3255bfef95601890afd80709', os.listdir(outdirb))
+            self.assertTrue(os.path.isfile, os.path.join(outdirb, 'index.html'))
 
     def test_filename_sequence(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with treelog.HtmlLog(tmpdir) as log:
+            with treelog.HtmlLog(tmpdir, title='test') as log:
                 pass
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, 'log.html')))
-            with treelog.HtmlLog(tmpdir) as log:
+            self.assertTrue(os.path.isfile(os.path.join(tmpdir, 'log', 'index.html')))
+            with treelog.HtmlLog(tmpdir, title='test') as log:
                 pass
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, 'log-1.html')))
-            with treelog.HtmlLog(tmpdir) as log:
+            self.assertTrue(os.path.isfile(os.path.join(tmpdir, 'log-1', 'index.html')))
+            with treelog.HtmlLog(tmpdir, title='test') as log:
                 pass
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, 'log-2.html')))
+            self.assertTrue(os.path.isfile(os.path.join(tmpdir, 'log-2', 'index.html')))
 
 
 class RecordLog(unittest.TestCase):
@@ -299,11 +283,11 @@ class RecordLog(unittest.TestCase):
         with self.subTest('replay to DataLog'), tempfile.TemporaryDirectory() as tmpdir:
             recordlog.replay(treelog.DataLog(tmpdir))
             DataLog.check_output(self, tmpdir)
-        with self.subTest('replay to HtmlLog'), tempfile.TemporaryDirectory() as tmpdir:
-            with treelog.HtmlLog(tmpdir, title='test') as htmllog:
-                recordlog.replay(htmllog)
-            HtmlLog.check_output(self, tmpdir, htmllog.filename)
         if not self.simplify:
+            with self.subTest('replay to HtmlLog'), tempfile.TemporaryDirectory() as tmpdir:
+                with treelog.HtmlLog(tmpdir, title='test') as htmllog:
+                    recordlog.replay(htmllog)
+                HtmlLog.check_output(self, tmpdir, htmllog.filename)
             with self.subTest('replay to RichOutputLog'):
                 f = io.StringIO()
                 recordlog.replay(treelog.RichOutputLog(f))

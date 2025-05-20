@@ -7,9 +7,9 @@ import typing
 supports_fd = os.supports_dir_fd.issuperset((os.open, os.mkdir))
 
 
-def makedirs(*pathsegments):
+def makedirs(*pathsegments, exist_ok=True):
     path = pathlib.Path(*pathsegments)
-    path.mkdir(parents=True, exist_ok=True)
+    path.mkdir(parents=True, exist_ok=exist_ok)
     if not supports_fd:
         return path
     dir_fd = os.open(path, flags=os.O_RDONLY)
