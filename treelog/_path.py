@@ -27,6 +27,23 @@ def sequence(filename: str) -> typing.Generator[str, None, None]:
         i += 1
 
 
+def non_existent(path, names, f):
+    if isinstance(path, str):
+        path = pathlib.Path(path)
+    for name in names:
+        try:
+            return name, f(path / name)
+        except FileExistsError:
+            pass
+        except PermissionError:
+            # On Windows, trying to open a path that exists as a directory
+            # triggers a permission error. To avoid a runaway iteration, we
+            # continue to the next name only if the path indeed exists.
+            if not isinstance(path, pathlib.Path) or not (path / name).exists():
+                raise
+    raise Exception('names exhausted')
+
+
 class _FDDirPath:
 
     def __init__(self, dir_fd: int) -> None:
