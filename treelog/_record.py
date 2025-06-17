@@ -2,14 +2,13 @@ import contextlib
 import tempfile
 import typing
 
-from .proto import Level, Log, oldproto
+from .proto import Level, Log
 
 
 def RecordLog(simplify: bool = True):
     return _RecordLog()
 
 
-@oldproto.fromnew
 class _RecordLog(list):
     '''Record log events.
 

@@ -2,19 +2,19 @@ import contextlib
 import html
 import os
 import urllib.parse
+import contextlib
 
 from ._path import makedirs, sequence, non_existent
-from .proto import Level, Data, oldproto
+from .proto import Level, Data
 
 
 def HtmlLog(dirpath: str, *, title: str, **_):
     name, path = non_existent(dirpath, sequence('log'), lambda p: makedirs(p, exist_ok=False))
     log = _HtmlLog(path, title)
     log.filename = os.path.join(name, 'index.html') # for backwards compatibility
-    return log
+    return contextlib.closing(log)
 
 
-@oldproto.fromnew
 class _HtmlLog:
     '''Output html nested lists.'''
 

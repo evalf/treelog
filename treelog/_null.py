@@ -1,7 +1,6 @@
-from .proto import Level, oldproto
+from .proto import Level
 
 
-@oldproto.fromnew
 class NullLog:
 
     def branch(self, title: str):

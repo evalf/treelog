@@ -3,10 +3,9 @@ import os
 import typing
 
 from ._path import makedirs, sequence, non_existent
-from .proto import Level, Data, oldproto
+from .proto import Level, Data
 
 
-@oldproto.fromnew
 class DataLog:
     '''Output only data.'''
 

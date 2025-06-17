@@ -1,6 +1,6 @@
 import sys
 
-from .proto import Level, oldproto
+from .proto import Level
 
 
 def RichOutputLog(file=sys.stdout):
@@ -29,7 +29,6 @@ class Status:
         file.flush()
 
 
-@oldproto.fromnew
 class _RichOutputLog:
     '''Output rich (colored,unicode) text to stream.'''
 

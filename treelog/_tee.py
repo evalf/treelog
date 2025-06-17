@@ -12,18 +12,13 @@ class TeeLog:
         self._baselog1 = baselog1
         self._baselog2 = baselog2
 
-    def pushcontext(self, title: str) -> None:
-        self._baselog1.pushcontext(title)
-        self._baselog2.pushcontext(title)
-
-    def popcontext(self) -> None:
-        self._baselog1.popcontext()
-        self._baselog2.popcontext()
-
-    def recontext(self, title: str) -> None:
-        self._baselog1.recontext(title)
-        self._baselog2.recontext(title)
+    def branch(self, title: str) -> None:
+        return TeeLog(self._baselog1.branch(title), self._baselog2.branch(title))
 
     def write(self, msg, level: Level) -> None:
         self._baselog1.write(msg, level)
         self._baselog2.write(msg, level)
+
+    def close(self) -> None:
+        self._baselog1.close()
+        self._baselog2.close()

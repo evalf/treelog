@@ -37,15 +37,18 @@ class wrap(typing.Generic[T]):
         if self._log is not None:
             raise Exception('iter.wrap is not reentrant')
         self._log = _state.current
-        self._log.pushcontext(next(self._titles))
+        self._context = self._log.branch(next(self._titles))
+        _state.current = self._context
         return iter(self)
 
     def __iter__(self) -> typing.Generator[T, None, None]:
         if self._log is not None:
             cansend = inspect.isgenerator(self._titles)
             for value in self._iterable:
-                self._log.recontext(typing.cast(typing.Generator[str, T, None], self._titles).send(
+                self._context.close()
+                self._context = self._log.branch(typing.cast(typing.Generator[str, T, None], self._titles).send(
                     value) if cansend else next(self._titles))
+                _state.current = self._context
                 yield value
         else:
             with self:
@@ -57,7 +60,8 @@ class wrap(typing.Generic[T]):
             raise Exception('iter.wrap has not yet been entered')
         if self._warn and exctype is GeneratorExit:
             warnings.warn('unclosed iter.wrap', ResourceWarning)
-        self._log.popcontext()
+        _state.current = self._log
+        self._context.close()
         self._log = None
 
 

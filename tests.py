@@ -273,7 +273,7 @@ class RecordLog(unittest.TestCase):
         recordlog = treelog.RecordLog()
         with treelog.set(recordlog):
             generate()
-        self.check_output(recordlog.current)
+        self.check_output(recordlog)
         with self.subTest('replay to StdoutLog'):
             f = io.StringIO()
             recordlog.replay(treelog.StdoutLog(f))
@@ -342,7 +342,7 @@ class TeeLog(unittest.TestCase):
             with self.subTest('DataLog'):
                 DataLog.check_output(self, tmpdir)
             with self.subTest('RecordLog'):
-                RecordLog.check_output(self, recordlog.current)
+                RecordLog.check_output(self, recordlog)
             with self.subTest('RichOutputLog'):
                 RichOutputLog.check_output(self, f)
 
@@ -363,7 +363,7 @@ class FilterMinLog(unittest.TestCase):
         recordlog = treelog.RecordLog()
         with treelog.set(treelog.FilterLog(recordlog, minlevel=Level.user)):
             generate()
-        self.check_output(recordlog.current)
+        self.check_output(recordlog)
 
     def check_output(self, messages):
         self.assertEqual(messages, [
@@ -396,7 +396,7 @@ class FilterMaxLog(unittest.TestCase):
         recordlog = treelog.RecordLog()
         with treelog.set(treelog.FilterLog(recordlog, maxlevel=Level.user)):
             generate()
-        self.check_output(recordlog.current)
+        self.check_output(recordlog)
 
     def check_output(self, messages):
         self.assertEqual(messages, [
@@ -433,7 +433,7 @@ class FilterMinMaxLog(unittest.TestCase):
         recordlog = treelog.RecordLog()
         with treelog.set(treelog.FilterLog(recordlog, minlevel=Level.info, maxlevel=Level.warning)):
             generate()
-        self.check_output(recordlog.current)
+        self.check_output(recordlog)
 
     def check_output(self, messages):
         self.assertEqual(messages, [
@@ -505,7 +505,7 @@ class Iter(unittest.TestCase):
         self.addCleanup(c.__exit__, None, None, None)
 
     def assertMessages(self, *msg):
-        self.assertEqual(self.recordlog.current, list(msg))
+        self.assertEqual(self.recordlog, list(msg))
 
     def test_context(self):
         with treelog.iter.plain('test', enumerate('abc')) as myiter:

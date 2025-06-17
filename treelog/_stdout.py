@@ -1,9 +1,8 @@
 import sys
 
-from .proto import Level, oldproto
+from .proto import Level
 
 
-@oldproto.fromnew
 class StdoutLog:
     '''Output plain text to stream.'''
 

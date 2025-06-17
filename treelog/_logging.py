@@ -1,13 +1,12 @@
 import logging
 
-from .proto import Level, oldproto
+from .proto import Level
 
 
 def LoggingLog(name: str = 'nutils'):
     return _LoggingLog(logging.getLogger(name), prefix='')
 
 
-@oldproto.fromnew
 class _LoggingLog:
     '''Output plain text to stream.'''
 
