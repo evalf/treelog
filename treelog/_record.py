@@ -2,13 +2,18 @@ import contextlib
 import tempfile
 import typing
 
-from .proto import Level, Log
+from .proto import Level, Log, oldproto
 
 
-class RecordLog:
-    '''Record log messages.
+def RecordLog(simplify: bool = True):
+    return _RecordLog()
 
-    The recorded messages can be replayed to the logs that are currently active
+
+@oldproto.fromnew
+class _RecordLog(list):
+    '''Record log events.
+
+    The recorded events can be replayed to the logs that are currently active
     by :meth:`replay`. Typical usage is caching expensive operations:
 
     >>> import treelog, pickle
@@ -28,51 +33,26 @@ class RecordLog:
        Exceptions raised while in a :meth:`Log.context` are not recorded.
     '''
 
-    def __init__(self, simplify: bool = True):
-        # Replayable log messages.  Each entry is a tuple of `(cmd, *args)`, where
-        # `cmd` is either 'pushcontext', 'popcontext', 'open',
-        # 'close' or 'write'.  See `self.replay` below.
-        self._simplify = simplify
-        self._messages = []  # type: typing.List[typing.Any]
-        self._fid = 0  # internal file counter
+    def branch(self, title: str):
+        ctx = self.__class__()
+        self.append((title, ctx))
+        return ctx
 
-    def pushcontext(self, title: str) -> None:
-        if self._simplify and self._messages and self._messages[-1][0] == 'popcontext':
-            self._messages[-1] = 'recontext', title
-        else:
-            self._messages.append(('pushcontext', title))
+    def write(self, msg, level: Level):
+        self.append((msg, level))
 
-    def recontext(self, title: str) -> None:
-        if self._simplify and self._messages and self._messages[-1][0] in ('pushcontext', 'recontext'):
-            self._messages[-1] = self._messages[-1][0], title
-        else:
-            self._messages.append(('recontext', title))
-
-    def popcontext(self) -> None:
-        if not self._simplify or not self._messages or self._messages[-1][0] not in ('pushcontext', 'recontext') or self._messages.pop()[0] == 'recontext':
-            self._messages.append(('popcontext',))
-
-    def write(self, msg, level: Level) -> None:
-        self._messages.append(('write', msg, level))
+    def close(self):
+        pass
 
     def replay(self, log: typing.Optional[Log] = None) -> None:
-        '''Replay this recorded log.
-
-        All recorded messages and files will be written to the log that is either
-        directly specified or currently active.'''
-
-        files = {}
         if log is None:
             from ._state import current as log
-        for cmd, *args in self._messages:
-            if cmd == 'pushcontext':
-                title, = args
-                log.pushcontext(title)
-            elif cmd == 'recontext':
-                title, = args
-                log.recontext(title)
-            elif cmd == 'popcontext':
-                log.popcontext()
-            elif cmd == 'write':
-                msg, level = args
-                log.write(msg, level)
+        for text, arg in self:
+            if isinstance(arg, Level):
+                log.write(text, arg)
+            elif isinstance(arg, self.__class__):
+                ctx = log.branch(text)
+                arg.replay(ctx)
+                ctx.close()
+            else:
+                raise ValueError(arg)
