@@ -647,6 +647,41 @@ class Iter(unittest.TestCase):
             ('popcontext',))
 
 
+class Path(unittest.TestCase):
+
+    def setUp(self):
+        c = tempfile.TemporaryDirectory()
+        self.tmpdir = c.__enter__()
+        self.addCleanup(c.__exit__, None, None, None)
+        self.path = _path.makedirs(self.tmpdir, 'foo')
+
+    def test_open(self):
+        with (self.path / 'testfile').open('w') as f:
+            f.write('hi!')
+        with open(os.path.join(self.tmpdir, 'foo', 'testfile')) as f:
+            self.assertEqual(f.read(), 'hi!')
+
+    def test_mkdir(self):
+        d = (self.path / 'testdir').mkdir()
+        self.assertTrue(os.path.isdir(os.path.join(self.tmpdir, 'foo', 'testdir')))
+        with self.assertRaises(FileExistsError):
+            (self.path / 'testdir').mkdir()
+        (self.path / 'testdir').mkdir(exist_ok=True)
+        with self.assertRaises(FileNotFoundError):
+            (self.path / 'a' / 'b').mkdir()
+        (self.path / 'a' / 'b').mkdir(parents=True)
+        self.assertTrue(os.path.isdir(os.path.join(self.tmpdir, 'foo', 'a', 'b')))
+
+    @unittest.skipIf(not _path.supports_fd, 'dir_fd not supported on platform')
+    def test_move(self):
+        os.rename(os.path.join(self.tmpdir, 'foo'), os.path.join(self.tmpdir, 'bar'))
+        with (self.path / 'testfile').open('w') as f:
+            pass
+        self.assertTrue(os.path.isfile(os.path.join(self.tmpdir, 'bar', 'testfile')))
+        (self.path / 'testdir').mkdir()
+        self.assertTrue(os.path.isdir(os.path.join(self.tmpdir, 'bar', 'testdir')))
+
+
 class DocTest(unittest.TestCase):
 
     def test_docs(self):
