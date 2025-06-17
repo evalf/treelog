@@ -1,6 +1,6 @@
 import sys
 
-from .proto import Level, oldproto
+from .proto import Level
 
 
 def RichOutputLog(file=sys.stdout):
@@ -29,7 +29,6 @@ class Status:
         self.file.flush()
 
 
-@oldproto.fromnew
 class _RichOutputLog:
     """Output rich (colored,unicode) text to stream."""
 
@@ -49,7 +48,7 @@ class _RichOutputLog:
         status.print()
 
     def branch(self, title):
-        return self.__class__(self.file, self.prefix + title + " > ", self.status)
+        return _RichOutputLog(self.file, self.prefix + title + " > ", self.status)
 
     def write(self, msg, level: Level) -> None:
         msg = str(msg)

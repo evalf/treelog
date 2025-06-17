@@ -6,7 +6,7 @@ import typing
 import urllib.parse
 
 from ._path import makedirs, sequence, non_existent
-from .proto import Level, Data, oldproto
+from .proto import Level, Data
 
 
 class HtmlLog:
@@ -42,7 +42,7 @@ class HtmlLog:
                 favicon=self.favicon,
             )
         )
-        log = oldproto.fromnew(_HtmlBranch)(_dir, self._file, [])
+        log = _HtmlBranch(_dir, self._file, [])
         log.filename = filename
         return log
 

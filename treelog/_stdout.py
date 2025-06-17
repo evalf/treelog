@@ -1,9 +1,8 @@
 import sys
 
-from .proto import Level, oldproto
+from .proto import Level
 
 
-@oldproto.fromnew
 class StdoutLog:
     """Output plain text to stream."""
 
@@ -12,7 +11,7 @@ class StdoutLog:
         self.prefix = prefix
 
     def branch(self, title):
-        return self.__class__(self.file, self.prefix + title + " > ")
+        return StdoutLog(self.file, self.prefix + title + " > ")
 
     def write(self, msg, level: Level) -> None:
         if self.prefix:

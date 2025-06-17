@@ -1,13 +1,12 @@
 import typing
 
-from .proto import Level, Log, oldproto
+from .proto import Level, Log
 
 
 def RecordLog(simplify: bool = True):
     return _RecordLog()
 
 
-@oldproto.fromnew
 class _RecordLog(list):
     """Record log events.
 
@@ -32,7 +31,7 @@ class _RecordLog(list):
     """
 
     def branch(self, title: str):
-        ctx = self.__class__()
+        ctx = _RecordLog()
         self.append((title, ctx))
         return ctx
 
@@ -48,7 +47,7 @@ class _RecordLog(list):
         for text, arg in self:
             if isinstance(arg, Level):
                 log.write(text, arg)
-            elif isinstance(arg, self.__class__):
+            elif isinstance(arg, _RecordLog):
                 ctx = log.branch(text)
                 arg.replay(ctx)
                 ctx.close()

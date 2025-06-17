@@ -1,13 +1,10 @@
 import logging
 
-from .proto import oldproto
-
 
 def LoggingLog(name: str = "nutils"):
     return _LoggingLog(logging.getLogger(name), prefix="")
 
 
-@oldproto.fromnew
 class _LoggingLog:
     """Output plain text to stream."""
 
@@ -18,7 +15,7 @@ class _LoggingLog:
         self._prefix = prefix
 
     def branch(self, title):
-        return self.__class__(self._logger, self._prefix + title + " > ")
+        return _LoggingLog(self._logger, self._prefix + title + " > ")
 
     def write(self, msg, level) -> None:
         self._logger.log(self._levels[level.value], self._prefix + str(msg))

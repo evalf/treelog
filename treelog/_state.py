@@ -50,21 +50,29 @@ def context(
     given the title is used as a format string, and a callable is returned that
     allows for recontextualization from within the current with-block."""
 
+    global current
     log = current
     if initargs or initkwargs:
         format = title.format
 
+        # type: typing.Optional[typing.Callable[..., None]]
         def reformat(*args, **kwargs):
-            log.recontext(format(*args, **kwargs))
+            global current
+            nonlocal context
+            context.close()
+            context = log.branch(format(*args, **kwargs))
+            current = context
 
         title = title.format(*initargs, **initkwargs)
     else:
         reformat = None
-    log.pushcontext(title)
+    context = log.branch(title)
     try:
+        current = context
         yield reformat
     finally:
-        log.popcontext()
+        current = log
+        context.close()
 
 
 T = typing.TypeVar("T")
@@ -111,11 +119,19 @@ def file(level: Level, name: str, mode: str, type: typing.Optional[str] = None):
         binary = False
     else:
         raise ValueError(f"invalid mode {mode!r}")
-    with tempfile.TemporaryFile() as f, context(name):
-        yield f if binary else io.TextIOWrapper(f, write_through=True)
+    global current
+    log = current
+    with tempfile.TemporaryFile() as f:
+        context = log.branch(name)
+        try:
+            current = context
+            yield f if binary else io.TextIOWrapper(f, write_through=True)
+        finally:
+            current = log
+            context.close()
         f.seek(0)
         data = f.read()
-    current.write(Data(name, data, type), level)
+    log.write(Data(name, data, type), level)
 
 
 def data(level: Level, name: str, data: bytes, type: typing.Optional[str] = None):
