@@ -8,7 +8,7 @@ import typing
 import urllib.parse
 import warnings
 
-from ._path import makedirs, sequence
+from ._path import makedirs, sequence, non_existent
 from .proto import Level, Data
 
 
@@ -17,14 +17,7 @@ class HtmlLog:
 
     def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
         self._path = makedirs(dirpath)
-        for self.filename in sequence(filename):
-            try:
-                self._file = (self._path / self.filename).open('x', encoding='utf-8')
-            except FileExistsError:
-                continue
-            break
-        else:
-            raise ValueError('all filenames are in use')
+        self.filename, self._file = non_existent(dirpath, sequence(filename), lambda p: p.open('x', encoding='utf-8'))
         css = self._write_hash(CSS.encode(), '.css')
         js = self._write_hash(JS.encode(), '.js')
         if title is None:
