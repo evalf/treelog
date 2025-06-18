@@ -1,11 +1,35 @@
 import sys
-import typing
 
-from ._context import ContextLog
 from .proto import Level
 
 
-class RichOutputLog(ContextLog):
+def RichOutputLog(file=sys.stdout):
+    set_ansi_console()
+    return _RichOutputLog(file, prefix='', status=Status())
+
+
+class Status:
+
+    def __init__(self):
+        self.c = []
+
+    def add(self, prefix):
+        self.c.append(prefix)
+
+    def remove(self, prefix):
+        self.c.remove(prefix)
+
+    def __str__(self):
+        # later, when we support simultaneously opened contexts, we can replace
+        # this with something more sophisticated
+        return max(self.c, default='')
+
+    def print(self, file):
+        file.write(f'\r{self}\033[K')
+        file.flush()
+
+
+class _RichOutputLog:
     '''Output rich (colored,unicode) text to stream.'''
 
     _cmap = (
@@ -15,42 +39,23 @@ class RichOutputLog(ContextLog):
         '\033[1;35m',  # warning: bold purple
         '\033[1;31m')  # error: bold red
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._current = ''  # currently printed context
-        set_ansi_console()
+    def __init__(self, file, prefix, status) -> None:
+        self.file = file
+        self.prefix = prefix
+        self.status = status
+        status.add(prefix)
+        status.print(file)
 
-    def contextchangedhook(self) -> None:
-        _current = ''.join(item + ' > ' for item in self.currentcontext)
-        if _current == self._current:
-            return
-        n = first(c1 != c2 for c1, c2 in zip(_current, self._current))
-        items = []
-        if n == 0 and self._current:
-            items.append('\r')
-        elif n < len(self._current):
-            items.append('\033[{}D'.format(len(self._current)-n))
-        if n < len(_current):
-            items.append(_current[n:])
-        if len(_current) < len(self._current):
-            items.append('\033[K')
-        sys.stdout.write(''.join(items))
-        sys.stdout.flush()
-        self._current = _current
+    def branch(self, title):
+        return self.__class__(self.file, self.prefix + title + ' > ', self.status)
 
     def write(self, msg, level: Level) -> None:
-        sys.stdout.write(
-            ''.join([self._cmap[level.value], str(msg), '\033[0m\n', self._current]))
+        self.file.write(f'\r{self.prefix}{self._cmap[level.value]}{msg}\033[0m\033[K\n')
+        self.status.print(self.file)
 
-
-def first(items: typing.Iterable[bool]) -> int:
-    'return index of first truthy item, or len(items) of all items are falsy'
-    i = 0
-    for item in items:
-        if item:
-            break
-        i += 1
-    return i
+    def close(self):
+        self.status.remove(self.prefix)
+        self.status.print(self.file)
 
 
 def set_ansi_console() -> None:

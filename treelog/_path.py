@@ -4,16 +4,45 @@ import pathlib
 import typing
 
 
-supports_fd = os.open in os.supports_dir_fd
+supports_fd = os.supports_dir_fd.issuperset((os.open, os.mkdir))
 
 
-def makedirs(*pathsegments):
+def makedirs(*pathsegments, exist_ok=True):
     path = pathlib.Path(*pathsegments)
-    path.mkdir(parents=True, exist_ok=True)
+    path.mkdir(parents=True, exist_ok=exist_ok)
     if not supports_fd:
         return path
     dir_fd = os.open(path, flags=os.O_RDONLY)
-    return _FDDirPath(dir_fd)
+    return FDPath(dir_fd, '')
+
+
+class FDPath:
+
+    def __init__(self, dir_fd: int, path: str) -> None:
+        self.dir_fd = dir_fd
+        self.path = path
+
+    @property
+    def parent(self):
+        return FDPath(self.dir_fd, os.path.dirname(self.path))
+
+    def __truediv__(self, path: str) -> 'FDPath':
+        return FDPath(self.dir_fd, os.path.join(self.path, path))
+
+    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        try:
+            os.mkdir(self.path, mode, dir_fd=self.dir_fd)
+        except FileExistsError:
+            if not exist_ok:
+                raise
+        except FileNotFoundError:
+            if not parents:
+                raise
+            self.parent.mkdir(mode, parents=True, exist_ok=True)
+            self.mkdir(mode)
+
+    def open(self, mode: str, *, encoding: typing.Optional[str] = None) -> typing.IO[typing.Any]:
+        return open(self.path, mode, encoding=encoding, opener=functools.partial(os.open, dir_fd=self.dir_fd))
 
 
 def sequence(filename: str) -> typing.Generator[str, None, None]:
@@ -27,25 +56,18 @@ def sequence(filename: str) -> typing.Generator[str, None, None]:
         i += 1
 
 
-class _FDDirPath:
-
-    def __init__(self, dir_fd: int) -> None:
-        self._opener = functools.partial(os.open, dir_fd=dir_fd)
-        self._close = functools.partial(os.close, dir_fd)
-        # by holding on to os.close we make sure it is still available during destruction
-
-    def __truediv__(self, filename: str):
-        return _FDFilePath(self, filename)
-
-    def __del__(self) -> None:
-        self._close()
-
-
-class _FDFilePath:
-
-    def __init__(self, directory, filename):
-        self._directory = directory
-        self._filename = filename
-
-    def open(self, mode: str, *, encoding: typing.Optional[str] = None) -> typing.IO[typing.Any]:
-        return open(self._filename, mode, encoding=encoding, opener=self._directory._opener)
+def non_existent(path, names, f):
+    if isinstance(path, str):
+        path = pathlib.Path(path)
+    for name in names:
+        try:
+            return name, f(path / name)
+        except FileExistsError:
+            pass
+        except PermissionError:
+            # On Windows, trying to open a path that exists as a directory
+            # triggers a permission error. To avoid a runaway iteration, we
+            # continue to the next name only if the path indeed exists.
+            if not isinstance(path, pathlib.Path) or not (path / name).exists():
+                raise
+    raise Exception('names exhausted')

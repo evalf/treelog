@@ -11,14 +11,8 @@ class FilterLog:
         self._minlevel = minlevel
         self._maxlevel = maxlevel
 
-    def pushcontext(self, title: str) -> None:
-        self._baselog.pushcontext(title)
-
-    def popcontext(self) -> None:
-        self._baselog.popcontext()
-
-    def recontext(self, title: str) -> None:
-        self._baselog.recontext(title)
+    def branch(self, title: str) -> None:
+        return FilterLog(self._baselog.branch(title), self._minlevel, self._maxlevel)
 
     def _passthrough(self, level: Level) -> bool:
         '''Return True if messages of the given level should pass through.'''
@@ -31,3 +25,6 @@ class FilterLog:
     def write(self, msg, level: Level) -> None:
         if self._passthrough(level):
             self._baselog.write(msg, level)
+
+    def close(self) -> None:
+        self._baselog.close()
