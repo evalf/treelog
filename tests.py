@@ -83,7 +83,7 @@ class StdoutLog(unittest.TestCase):
            'my context > iter 2 > b\n'
            'my context > iter 3 > c\n'
            'my context > multiple..\n'
-           '  ..lines\n'
+           '           >   ..lines\n'
            'my context > test.dat > generating\n'
            'my context > test.dat [5 bytes]\n'
            'generate_test > test.dat [5 bytes]\n'

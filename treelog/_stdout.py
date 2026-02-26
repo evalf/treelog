@@ -11,13 +11,16 @@ class StdoutLog:
         self.currentcontext = []  # type: typing.List[str]
 
     def pushcontext(self, title: str) -> None:
-        self.currentcontext.append(title)
+        self.currentcontext.append(title + ' > ')
 
     def popcontext(self) -> None:
         self.currentcontext.pop()
 
     def recontext(self, title: str) -> None:
-        self.currentcontext[-1] = title
+        self.currentcontext[-1] = title + ' > '
 
     def write(self, msg, level: proto.Level) -> None:
-        print(*self.currentcontext, msg, sep=' > ', file=self.file)
+        if self.currentcontext:
+            prefix = ''.join(self.currentcontext)
+            msg = prefix + str(msg).replace('\n', '\n' + ' > '.rjust(len(prefix)))
+        print(msg, file=self.file)
