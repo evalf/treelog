@@ -1,11 +1,10 @@
 import sys
 import typing
 
-from ._context import ContextLog
 from .proto import Level
 
 
-class RichOutputLog(ContextLog):
+class RichOutputLog:
     '''Output rich (colored,unicode) text to stream.'''
 
     _cmap = (
@@ -16,10 +15,22 @@ class RichOutputLog(ContextLog):
         '\033[1;31m')  # error: bold red
 
     def __init__(self, file=sys.stdout) -> None:
-        super().__init__()
         self._current = ''  # currently printed context
         self.file = file
         set_ansi_console()
+        self.currentcontext = []  # type: typing.List[str]
+
+    def pushcontext(self, title: str) -> None:
+        self.currentcontext.append(title)
+        self.contextchangedhook()
+
+    def popcontext(self) -> None:
+        self.currentcontext.pop()
+        self.contextchangedhook()
+
+    def recontext(self, title: str) -> None:
+        self.currentcontext[-1] = title
+        self.contextchangedhook()
 
     def contextchangedhook(self) -> None:
         _current = ''.join(item + ' > ' for item in self.currentcontext)
