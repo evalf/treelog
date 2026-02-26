@@ -17,7 +17,7 @@ class HtmlLog:
 
     def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
         self._path = makedirs(dirpath)
-        self.filename, self._file = non_existent(dirpath, sequence(filename), lambda p: p.open('x', encoding='utf-8'))
+        self.filename, self._file = non_existent(self._path, sequence(filename), lambda p: p.open('x', encoding='utf-8'))
         css = self._write_hash(CSS.encode(), '.css')
         js = self._write_hash(JS.encode(), '.js')
         if title is None:
