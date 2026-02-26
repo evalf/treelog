@@ -120,7 +120,7 @@ class RichOutputLog(unittest.TestCase):
             '\x1b[9D\x1b[K'
             'empty > '
             '\x1b[8D\x1b[K'
-            '\x1b[1;31mmultiple..\n  ..lines\x1b[0m\nmy context > test.dat > '
+            '\x1b[1;31mmultiple..\x1b[0m\n           > \x1b[1;31m  ..lines\x1b[0m\nmy context > test.dat > '
             '\x1b[1mgenerating\x1b[0m\nmy context > test.dat > '
             '\x1b[11D\x1b[K'
             '\x1b[1;34mtest.dat [5 bytes]\x1b[0m\nmy context > '

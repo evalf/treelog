@@ -51,8 +51,11 @@ class RichOutputLog:
         self._current = _current
 
     def write(self, msg, level: Level) -> None:
+        msg = str(msg)
+        if self._current and '\n' in msg:
+            msg = msg.replace('\n', '\033[0m\n' + ' > '.rjust(len(self._current)) + self._cmap[level.value])
         self.file.write(
-            ''.join([self._cmap[level.value], str(msg), '\033[0m\n', self._current]))
+            ''.join([self._cmap[level.value], msg, '\033[0m\n', self._current]))
 
 
 def first(items: typing.Iterable[bool]) -> int:
