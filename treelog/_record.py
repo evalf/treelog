@@ -61,7 +61,6 @@ class RecordLog:
         All recorded messages and files will be written to the log that is either
         directly specified or currently active.'''
 
-        files = {}
         if log is None:
             from ._state import current as log
         for cmd, *args in self._messages:

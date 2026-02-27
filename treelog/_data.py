@@ -2,7 +2,7 @@ import functools
 import os
 import typing
 
-from ._path import makedirs, sequence
+from ._path import makedirs, sequence, non_existent
 from .proto import Level, Data
 
 
@@ -24,13 +24,6 @@ class DataLog:
 
     def write(self, msg, level: Level) -> None:
         if isinstance(msg, Data):
-            for filename in self._names(msg.name):
-                try:
-                    f = (self._path / filename).open('xb')
-                except FileExistsError:
-                    continue
-                break
-            else:
-                raise ValueError('all filenames are in use')
+            _, f = non_existent(self._path, self._names(msg.name), lambda p: p.open('xb'))
             with f:
                 f.write(msg.data)

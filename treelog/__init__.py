@@ -1,6 +1,6 @@
 'Logging framework that organizes messages in a tree'
 
-__version__ = '2a1'
+__version__ = '2.0'
 
 from importlib import import_module
 
@@ -28,13 +28,8 @@ _log_objs = {
     'NullLog',
     'RecordLog',
     'RichOutputLog',
-    'StderrLog',
     'StdoutLog',
     'TeeLog',
-}
-_legacy = {
-    'version': __version__,
-    'Log': None,
 }
 
 def __dir__():
@@ -44,7 +39,6 @@ def __dir__():
         *_state_attrs,
         *_state_funcs,
         *_log_objs,
-        *_legacy,
     )
 
 def __getattr__(attr):
@@ -59,8 +53,6 @@ def __getattr__(attr):
         obj = getattr(m, attr)
     elif attr in _sub_mods:
         obj = import_module(f'.{attr}', 'treelog')
-    elif attr in _legacy:
-        obj = _legacy[attr]
     else:
         raise AttributeError(attr)
     globals()[attr] = obj
