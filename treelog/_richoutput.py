@@ -1,7 +1,7 @@
 import sys
 import typing
 
-from .proto import Level
+from .proto import Level, Data
 
 
 class RichOutputLog:
@@ -52,14 +52,20 @@ class RichOutputLog:
         self._current = _current
 
     def write(self, msg, level: Level) -> None:
-        msg = str(msg)
+        if isinstance(msg, Data):
+            info = f" [{msg.info}]"
+            msg = msg.name
+        else:
+            info = ""
         if self._current and "\n" in msg:
             msg = msg.replace(
                 "\n",
                 "\033[0m\n" + " > ".rjust(len(self._current)) + self._cmap[level.value],
             )
         self.file.write(
-            "".join([self._cmap[level.value], msg, "\033[0m\n", self._current])
+            "".join(
+                [self._cmap[level.value], msg, "\033[0m", info, "\n", self._current]
+            )
         )
 
 
