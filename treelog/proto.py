@@ -17,11 +17,15 @@ class Data:
     data: bytes
     type: Optional[str] = None
 
-    def __str__(self):
+    @property
+    def info(self):
         info = f"{len(self.data)} bytes"
         if self.type:
             info = f"{self.type}; {info}"
-        return f"{self.name} [{info}]"
+        return info
+
+    def __str__(self):
+        return f"{self.name} [{self.info}]"
 
 
 class Log(Protocol):
