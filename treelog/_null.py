@@ -2,7 +2,6 @@ from .proto import Level
 
 
 class NullLog:
-
     def pushcontext(self, title: str) -> None:
         pass
 

@@ -4,7 +4,6 @@ from typing import Protocol, Union, Optional
 
 
 class Level(Enum):
-
     debug = 0
     info = 1
     user = 2
@@ -19,14 +18,13 @@ class Data:
     type: Optional[str] = None
 
     def __str__(self):
-        info = f'{len(self.data)} bytes'
+        info = f"{len(self.data)} bytes"
         if self.type:
-            info = f'{self.type}; {info}'
-        return f'{self.name} [{info}]'
+            info = f"{self.type}; {info}"
+        return f"{self.name} [{info}]"
 
 
 class Log(Protocol):
-
     def pushcontext(self, title: str) -> None: ...
     def popcontext(self) -> None: ...
     def recontext(self, title: str) -> None: ...

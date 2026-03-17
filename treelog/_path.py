@@ -17,13 +17,13 @@ def makedirs(*pathsegments):
 
 
 def sequence(filename: str) -> typing.Generator[str, None, None]:
-    '''Generate file names a.b, a-1.b, a-2.b, etc.'''
+    """Generate file names a.b, a-1.b, a-2.b, etc."""
 
     yield filename
     splitext = os.path.splitext(filename)
     i = 1
     while True:
-        yield '-{}'.format(i).join(splitext)
+        yield "-{}".format(i).join(splitext)
         i += 1
 
 
@@ -41,11 +41,10 @@ def non_existent(path, names, f):
             # continue to the next name only if the path indeed exists.
             if not isinstance(path, pathlib.Path) or not (path / name).exists():
                 raise
-    raise Exception('names exhausted')
+    raise Exception("names exhausted")
 
 
 class _FDDirPath:
-
     def __init__(self, dir_fd: int) -> None:
         self._opener = functools.partial(os.open, dir_fd=dir_fd)
         self._close = functools.partial(os.close, dir_fd)
@@ -59,10 +58,13 @@ class _FDDirPath:
 
 
 class _FDFilePath:
-
     def __init__(self, directory, filename):
         self._directory = directory
         self._filename = filename
 
-    def open(self, mode: str, *, encoding: typing.Optional[str] = None) -> typing.IO[typing.Any]:
-        return open(self._filename, mode, encoding=encoding, opener=self._directory._opener)
+    def open(
+        self, mode: str, *, encoding: typing.Optional[str] = None
+    ) -> typing.IO[typing.Any]:
+        return open(
+            self._filename, mode, encoding=encoding, opener=self._directory._opener
+        )

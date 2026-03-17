@@ -1,4 +1,3 @@
-import contextlib
 import hashlib
 import html
 import os
@@ -13,21 +12,34 @@ from .proto import Level, Data
 
 
 class HtmlLog:
-    '''Output html nested lists.'''
+    """Output html nested lists."""
 
-    def __init__(self, dirpath: str, *, filename: str = 'log.html', title: typing.Optional[str] = None, htmltitle: typing.Optional[str] = None, favicon: typing.Optional[str] = None) -> None:
+    def __init__(
+        self,
+        dirpath: str,
+        *,
+        filename: str = "log.html",
+        title: typing.Optional[str] = None,
+        htmltitle: typing.Optional[str] = None,
+        favicon: typing.Optional[str] = None,
+    ) -> None:
         self._path = makedirs(dirpath)
-        self.filename, self._file = non_existent(self._path, sequence(filename), lambda p: p.open('x', encoding='utf-8'))
-        css = self._write_hash(CSS.encode(), '.css')
-        js = self._write_hash(JS.encode(), '.js')
+        self.filename, self._file = non_existent(
+            self._path, sequence(filename), lambda p: p.open("x", encoding="utf-8")
+        )
+        css = self._write_hash(CSS.encode(), ".css")
+        js = self._write_hash(JS.encode(), ".js")
         if title is None:
-            title = ' '.join(sys.argv)
+            title = " ".join(sys.argv)
         if htmltitle is None:
             htmltitle = html.escape(title)
         if favicon is None:
             favicon = FAVICON
-        self._file.write(HTMLHEAD.format(
-            title=title, htmltitle=htmltitle, css=css, js=js, favicon=favicon))
+        self._file.write(
+            HTMLHEAD.format(
+                title=title, htmltitle=htmltitle, css=css, js=js, favicon=favicon
+            )
+        )
         # active contexts that are not yet opened as html elements
         self._unopened = []  # type: typing.List[str]
 
@@ -46,46 +58,61 @@ class HtmlLog:
 
     def write(self, msg, level: Level) -> None:
         for c in self._unopened:
-            print('<div class="context"><div class="title">{}</div><div class="children">'.format(
-                html.escape(c)), file=self._file)
+            print(
+                '<div class="context"><div class="title">{}</div><div class="children">'.format(
+                    html.escape(c)
+                ),
+                file=self._file,
+            )
         self._unopened.clear()
         if isinstance(msg, Data):
             _, ext = os.path.splitext(msg.name)
             filename = self._write_hash(msg.data, ext)
-            text = '<a href="{href}" download="{name}">{name}</a>'.format(href=urllib.parse.quote(filename), name=html.escape(msg.name))
+            text = '<a href="{href}" download="{name}">{name}</a>'.format(
+                href=urllib.parse.quote(filename), name=html.escape(msg.name)
+            )
         else:
             text = html.escape(msg)
-        print('<div class="item" data-loglevel="{}">{}</div>'.format(level.value, text), file=self._file, flush=True)
+        print(
+            '<div class="item" data-loglevel="{}">{}</div>'.format(level.value, text),
+            file=self._file,
+            flush=True,
+        )
 
     def close(self) -> bool:
-        if hasattr(self, '_file') and not self._file.closed:
+        if hasattr(self, "_file") and not self._file.closed:
             self._file.write(HTMLFOOT)
             self._file.close()
             return True
         else:
             return False
 
-    def __enter__(self) -> 'HtmlLog':
+    def __enter__(self) -> "HtmlLog":
         return self
 
-    def __exit__(self, t: typing.Optional[typing.Type[BaseException]], value: typing.Optional[BaseException], traceback: typing.Optional[types.TracebackType]) -> None:
+    def __exit__(
+        self,
+        t: typing.Optional[typing.Type[BaseException]],
+        value: typing.Optional[BaseException],
+        traceback: typing.Optional[types.TracebackType],
+    ) -> None:
         self.close()
 
     def __del__(self) -> None:
         if self.close():
-            warnings.warn('unclosed object {!r}'.format(self), ResourceWarning)
+            warnings.warn("unclosed object {!r}".format(self), ResourceWarning)
 
     def _write_hash(self, data, ext):
         filename = hashlib.sha1(data).hexdigest() + ext
         try:
-            with (self._path / filename).open('xb') as f:
+            with (self._path / filename).open("xb") as f:
                 f.write(data)
         except FileExistsError:
             pass
         return filename
 
 
-HTMLHEAD = '''\
+HTMLHEAD = """\
 <!DOCTYPE html>
 <html>
 <head>
@@ -99,13 +126,13 @@ HTMLHEAD = '''\
 <body>
 <div id="header"><div id="bar"><div id="text"><div id="title">{htmltitle}</div></div></div></div>
 <div id="log">
-'''
+"""
 
-HTMLFOOT = '''\
+HTMLFOOT = """\
 </div></body></html>
-'''
+"""
 
-CSS = '''\
+CSS = """\
 body { font-family: monospace; font-size: 12px; }
 
 a, a:visited, a:hover { color: inherit; text-decoration: underline; }
@@ -192,9 +219,9 @@ body:not([data-show='theater']) #theater { display: none; }
 #theater.overview .plot_container3 { height: calc(100% - 20px); display: flex; align-items: center; justify-content: center; }
 #theater.overview .plot { background: white; max-width: 100%; max-height: 100%; }
 #theater.overview .label { position: absolute; width: 100%; left: 0px; right: 0px; bottom: 0px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-'''
+"""
 
-JS = '''\
+JS = """\
 'use strict';
 
 // LOW LEVEL UTILS
@@ -750,10 +777,12 @@ window.addEventListener('load', function() {
   apply_state(state);
   state_control = 'enabled';
 });
-'''
+"""
 
-FAVICON = 'data:image/png;base64,' \
-    'iVBORw0KGgoAAAANSUhEUgAAANIAAADSAgMAAABC93bRAAAACVBMVEUAAGcAAAD////NzL25' \
-    'AAAAAXRSTlMAQObYZgAAAFtJREFUaN7t2SEOACEMRcEa7ofh/ldBsJJAS1bO86Ob/MZY9ViN' \
-    'TD0oiqIo6qrOURRFUVRepQ4TRVEURdXVV6MoiqKoV2UJpCiKov7+p1AURVFUWZWiKIqiqI2a' \
-    '8O8qJ0n+GP4AAAAASUVORK5CYII='
+FAVICON = (
+    "data:image/png;base64,"
+    "iVBORw0KGgoAAAANSUhEUgAAANIAAADSAgMAAABC93bRAAAACVBMVEUAAGcAAAD////NzL25"
+    "AAAAAXRSTlMAQObYZgAAAFtJREFUaN7t2SEOACEMRcEa7ofh/ldBsJJAS1bO86Ob/MZY9ViN"
+    "TD0oiqIo6qrOURRFUVRepQ4TRVEURdXVV6MoiqKoV2UJpCiKov7+p1AURVFUWZWiKIqiqI2a"
+    "8O8qJ0n+GP4AAAAASUVORK5CYII="
+)

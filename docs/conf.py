@@ -6,27 +6,28 @@
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath('..'))
+
+sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Treelog'
-copyright = '2018, Evalf'
-author = 'Evalf'
+project = "Treelog"
+copyright = "2018, Evalf"
+author = "Evalf"
 
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.doctest',
-    'sphinx.ext.napoleon',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.doctest",
+    "sphinx.ext.napoleon",
 ]
 
-master_doc = 'index'
+master_doc = "index"
 
 # -- Options for HTML output -------------------------------------------------
 
-html_theme = 'default'
-html_favicon = 'favicon.ico'
-html_static_path = ['_static']
+html_theme = "default"
+html_favicon = "favicon.ico"
+html_static_path = ["_static"]
