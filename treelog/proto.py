@@ -17,19 +17,14 @@ class Data:
     data: bytes
     type: Optional[str] = None
 
-    @property
-    def info(self):
+    def __str__(self):
         info = f"{len(self.data)} bytes"
         if self.type:
             info = f"{self.type}; {info}"
-        return info
-
-    def __str__(self):
-        return f"{self.name} [{self.info}]"
+        return f"{self.name} [{info}]"
 
 
 class Log(Protocol):
-    def pushcontext(self, title: str) -> None: ...
-    def popcontext(self) -> None: ...
-    def recontext(self, title: str) -> None: ...
+    def branch(self, title: str) -> "Log": ...
     def write(self, msg: Union[str, Data], level: Level) -> None: ...
+    def close(self) -> None: ...

@@ -1,29 +1,24 @@
 import logging
-import typing
-
-from .proto import Level
 
 
-class LoggingLog:
-    """Log to Python's built-in logging facility."""
+def LoggingLog(name: str = "nutils"):
+    return _LoggingLog(logging.getLogger(name), prefix="")
 
-    # type: typing.ClassVar[typing.Tuple[int, int, int, int, int]]
+
+class _LoggingLog:
+    """Output plain text to stream."""
+
     _levels = logging.DEBUG, logging.INFO, 25, logging.WARNING, logging.ERROR
 
-    def __init__(self, name: str = "nutils") -> None:
-        self._logger = logging.getLogger(name)
-        self.currentcontext = []  # type: typing.List[str]
+    def __init__(self, logger, prefix):
+        self._logger = logger
+        self._prefix = prefix
 
-    def pushcontext(self, title: str) -> None:
-        self.currentcontext.append(title)
+    def branch(self, title):
+        return _LoggingLog(self._logger, self._prefix + title + " > ")
 
-    def popcontext(self) -> None:
-        self.currentcontext.pop()
+    def write(self, msg, level) -> None:
+        self._logger.log(self._levels[level.value], self._prefix + str(msg))
 
-    def recontext(self, title: str) -> None:
-        self.currentcontext[-1] = title
-
-    def write(self, msg, level: Level, data: typing.Optional[bytes] = None) -> None:
-        self._logger.log(
-            self._levels[level.value], " > ".join((*self.currentcontext, str(msg)))
-        )
+    def close(self):
+        pass

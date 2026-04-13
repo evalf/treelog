@@ -2,10 +2,8 @@ import hashlib
 import html
 import os
 import sys
-import types
 import typing
 import urllib.parse
-import warnings
 
 from ._path import makedirs, sequence, non_existent
 from .proto import Level, Data
@@ -23,38 +21,49 @@ class HtmlLog:
         htmltitle: typing.Optional[str] = None,
         favicon: typing.Optional[str] = None,
     ) -> None:
-        self._path = makedirs(dirpath)
-        self.filename, self._file = non_existent(
-            self._path, sequence(filename), lambda p: p.open("x", encoding="utf-8")
+        self.dirpath = dirpath
+        self.filename = filename
+        self.title = title or " ".join(sys.argv)
+        self.htmltitle = htmltitle or html.escape(self.title)
+        self.favicon = favicon or FAVICON
+
+    def __enter__(self):
+        _path = makedirs(self.dirpath)
+        filename, self._file = non_existent(
+            _path, sequence(self.filename), lambda p: p.open("x", encoding="utf-8")
         )
-        css = self._write_hash(CSS.encode(), ".css")
-        js = self._write_hash(JS.encode(), ".js")
-        if title is None:
-            title = " ".join(sys.argv)
-        if htmltitle is None:
-            htmltitle = html.escape(title)
-        if favicon is None:
-            favicon = FAVICON
+        _dir = _DirPath(_path)
         self._file.write(
             HTMLHEAD.format(
-                title=title, htmltitle=htmltitle, css=css, js=js, favicon=favicon
+                title=self.title,
+                htmltitle=self.htmltitle,
+                css=_dir._write_hash(CSS.encode(), ".css"),
+                js=_dir._write_hash(JS.encode(), ".js"),
+                favicon=self.favicon,
             )
         )
-        # active contexts that are not yet opened as html elements
-        self._unopened = []  # type: typing.List[str]
+        log = _HtmlBranch(_dir, self._file, [])
+        log.filename = filename
+        return log
 
-    def pushcontext(self, title: str) -> None:
-        self._unopened.append(title)
-
-    def popcontext(self) -> None:
-        if self._unopened:
-            self._unopened.pop()
+    def __exit__(self, *args) -> bool:
+        if hasattr(self, "_file") and not self._file.closed:
+            self._file.write(HTMLFOOT)
+            self._file.close()
+            return True
         else:
-            print('</div><div class="end"></div></div>', file=self._file)
+            return False
 
-    def recontext(self, title: str) -> None:
-        self.popcontext()
-        self.pushcontext(title)
+
+class _HtmlBranch:
+    def __init__(self, dirpath, file, unopened):
+        self._dir = dirpath
+        self._file = file
+        self._unopened = unopened
+
+    def branch(self, title):
+        self._unopened.append(title)
+        return _HtmlBranch(self._dir, self._file, self._unopened)
 
     def write(self, msg, level: Level) -> None:
         for c in self._unopened:
@@ -67,7 +76,7 @@ class HtmlLog:
         self._unopened.clear()
         if isinstance(msg, Data):
             _, ext = os.path.splitext(msg.name)
-            filename = self._write_hash(msg.data, ext)
+            filename = self._dir._write_hash(msg.data, ext)
             text = '<a href="{href}" download="{name}">{name}</a>'.format(
                 href=urllib.parse.quote(filename), name=html.escape(msg.name)
             )
@@ -79,28 +88,16 @@ class HtmlLog:
             flush=True,
         )
 
-    def close(self) -> bool:
-        if hasattr(self, "_file") and not self._file.closed:
-            self._file.write(HTMLFOOT)
-            self._file.close()
-            return True
+    def close(self):
+        if self._unopened:
+            self._unopened.pop()
         else:
-            return False
+            print('</div><div class="end"></div></div>', file=self._file)
 
-    def __enter__(self) -> "HtmlLog":
-        return self
 
-    def __exit__(
-        self,
-        t: typing.Optional[typing.Type[BaseException]],
-        value: typing.Optional[BaseException],
-        traceback: typing.Optional[types.TracebackType],
-    ) -> None:
-        self.close()
-
-    def __del__(self) -> None:
-        if self.close():
-            warnings.warn("unclosed object {!r}".format(self), ResourceWarning)
+class _DirPath:
+    def __init__(self, path):
+        self._path = path
 
     def _write_hash(self, data, ext):
         filename = hashlib.sha1(data).hexdigest() + ext

@@ -17,19 +17,16 @@ class DataLog:
         self._names = functools.lru_cache(maxsize=32)(names)
         self._path = makedirs(dirpath)
 
-    def pushcontext(self, title: str) -> None:
-        pass
+    def branch(self, title: str):
+        return self
 
-    def popcontext(self) -> None:
-        pass
-
-    def recontext(self, title: str) -> None:
-        pass
-
-    def write(self, msg, level: Level) -> None:
+    def write(self, msg, level: Level):
         if isinstance(msg, Data):
             _, f = non_existent(
                 self._path, self._names(msg.name), lambda p: p.open("xb")
             )
             with f:
                 f.write(msg.data)
+
+    def close(self):
+        pass
