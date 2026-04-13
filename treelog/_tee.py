@@ -1,12 +1,8 @@
-import contextlib
-import os
-import tempfile
-
 from .proto import Level, Log
 
 
 class TeeLog:
-    '''Forward messages to two underlying loggers.'''
+    """Forward messages to two underlying loggers."""
 
     def __init__(self, baselog1: Log, baselog2: Log) -> None:
         self._baselog1 = baselog1
