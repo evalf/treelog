@@ -25,5 +25,5 @@ class LoggingLog:
 
     def write(self, msg, level: Level, data: typing.Optional[bytes] = None) -> None:
         self._logger.log(
-            self._levels[level.value], " > ".join((*self.currentcontext, str(msg)))
+            self._levels[level.value], " > ".join(map(str, (*self.currentcontext, msg)))
         )
