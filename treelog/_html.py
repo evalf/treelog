@@ -60,7 +60,7 @@ class HtmlLog:
         for c in self._unopened:
             print(
                 '<div class="context"><div class="title">{}</div><div class="children">'.format(
-                    html.escape(c)
+                    html.escape(str(c))
                 ),
                 file=self._file,
             )

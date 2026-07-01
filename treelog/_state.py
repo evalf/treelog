@@ -3,13 +3,14 @@ import functools
 import io
 import tempfile
 import typing
+import warnings
 
 from ._data import DataLog
 from ._stdout import StdoutLog
 from ._tee import TeeLog
 from ._filter import FilterLog
 from ._null import NullLog
-from .proto import Level, Log, Data
+from .proto import Level, Log, Data, Iter
 
 current = FilterLog(TeeLog(StdoutLog(), DataLog()), minlevel=Level.info)
 
@@ -79,6 +80,54 @@ def withcontext(f: typing.Callable[..., T]) -> typing.Callable[..., T]:
             return f(*args, **kwargs)
 
     return wrapped
+
+
+class itercontext:
+    def __init__(self, title, items):
+        self._log = current
+        self._title = title
+        self._length = len(items)
+        self._items = iter(items)
+        self._index = 0
+        self._open = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exctype, excvalue, tb):
+        self.close()
+
+    def __iter__(self):
+        return self
+
+    @property
+    def _iter(self):
+        return Iter(self._title, self._index, self._length)
+
+    def __next__(self):
+        if self._index == self._length:
+            self.close()
+            raise StopIteration
+        if not self._open:
+            self._log.pushcontext(self._iter)
+            self._open = True
+        else:
+            self._log.recontext(self._iter)
+        self._index += 1
+        return next(self._items)
+
+    def close(self):
+        if self._open:
+            self._log.popcontext()
+            self._open = False
+
+    def __del__(self):
+        if self._open:
+            warnings.warn(
+                "destructing unclosed itercontext, consider entering it before iterating",
+                ResourceWarning,
+            )
+            self.close()
 
 
 def write(level: Level, *args: typing.Any, sep: str = " ") -> None:

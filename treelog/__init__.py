@@ -11,6 +11,7 @@ _state_attrs = {
     "disable",
     "context",
     "withcontext",
+    "itercontext",
 }
 _state_funcs = {
     level + op

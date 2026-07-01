@@ -28,8 +28,18 @@ class Data:
         return f"{self.name} [{self.info}]"
 
 
+@dataclass(frozen=True)
+class Iter:
+    name: str
+    index: int
+    length: int
+
+    def __str__(self):
+        return f"{self.name} {self.index + 1}/{self.length}"
+
+
 class Log(Protocol):
-    def pushcontext(self, title: str) -> None: ...
+    def pushcontext(self, title: Union[str, Iter]) -> None: ...
     def popcontext(self) -> None: ...
-    def recontext(self, title: str) -> None: ...
+    def recontext(self, title: Union[str, Iter]) -> None: ...
     def write(self, msg: Union[str, Data], level: Level) -> None: ...

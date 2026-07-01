@@ -28,7 +28,7 @@ import unittest
 import warnings
 
 from treelog import _path, _state
-from treelog.proto import Level, Data
+from treelog.proto import Level, Data, Iter
 
 
 @treelog.withcontext
@@ -49,6 +49,8 @@ def generate():
         with treelog.iter.plain("iter", "abc") as items:
             for c in items:
                 treelog.info(c)
+        for c in treelog.itercontext("newiter", "xyz"):
+            treelog.warning(c)
         with treelog.context("empty"):
             pass
         treelog.error("multiple..\n  ..lines")
@@ -82,6 +84,9 @@ class StdoutLog(unittest.TestCase):
             "my context > iter 1 > a\n"
             "my context > iter 2 > b\n"
             "my context > iter 3 > c\n"
+            "my context > newiter 1/3 > x\n"
+            "my context > newiter 2/3 > y\n"
+            "my context > newiter 3/3 > z\n"
             "my context > multiple..\n"
             "           >   ..lines\n"
             "my context > test.dat > generating\n"
@@ -119,6 +124,14 @@ class RichOutputLog(unittest.TestCase):
             "\x1b[4D3 > "
             "\x1b[1mc\x1b[0m\nmy context > iter 3 > "
             "\x1b[9D\x1b[K"
+            "newiter 1/3 > "
+            "\x1b[1;35mx\x1b[0m\n"
+            "my context > newiter 1/3 > "
+            "\x1b[6D2/3 > \x1b[1;35my\x1b[0m\n"
+            "my context > newiter 2/3 > "
+            "\x1b[6D3/3 > \x1b[1;35mz\x1b[0m\n"
+            "my context > newiter 3/3 > "
+            "\x1b[14D\x1b[K"
             "empty > "
             "\x1b[8D\x1b[K"
             "\x1b[1;31mmultiple..\x1b[0m\n           > \x1b[1;31m  ..lines\x1b[0m\nmy context > test.dat > "
@@ -218,6 +231,15 @@ class HtmlLog(unittest.TestCase):
                 '<div class="context"><div class="title">iter 3</div><div class="children">\n',
                 '<div class="item" data-loglevel="1">c</div>\n',
                 '</div><div class="end"></div></div>\n',
+                '<div class="context"><div class="title">newiter 1/3</div><div class="children">\n',
+                '<div class="item" data-loglevel="3">x</div>\n',
+                '</div><div class="end"></div></div>\n',
+                '<div class="context"><div class="title">newiter 2/3</div><div class="children">\n',
+                '<div class="item" data-loglevel="3">y</div>\n',
+                '</div><div class="end"></div></div>\n',
+                '<div class="context"><div class="title">newiter 3/3</div><div class="children">\n',
+                '<div class="item" data-loglevel="3">z</div>\n',
+                '</div><div class="end"></div></div>\n',
                 '<div class="item" data-loglevel="4">multiple..\n',
                 "  ..lines</div>\n",
                 '<div class="context"><div class="title">test.dat</div><div class="children">\n',
@@ -315,6 +337,13 @@ class RecordLog(unittest.TestCase):
                 ("recontext", "iter 3"),
                 ("write", "c", Level.info),
                 ("popcontext",),
+                ("pushcontext", Iter("newiter", 0, 3)),
+                ("write", "x", Level.warning),
+                ("recontext", Iter("newiter", 1, 3)),
+                ("write", "y", Level.warning),
+                ("recontext", Iter("newiter", 2, 3)),
+                ("write", "z", Level.warning),
+                ("popcontext",),
                 ("pushcontext", "empty"),
                 ("popcontext",),
                 ("write", "multiple..\n  ..lines", Level.error),
@@ -365,6 +394,12 @@ class SimplifiedRecordLog(RecordLog):
                 ("write", "b", Level.info),
                 ("recontext", "iter 3"),
                 ("write", "c", Level.info),
+                ("recontext", Iter("newiter", 0, 3)),
+                ("write", "x", Level.warning),
+                ("recontext", Iter("newiter", 1, 3)),
+                ("write", "y", Level.warning),
+                ("recontext", Iter("newiter", 2, 3)),
+                ("write", "z", Level.warning),
                 ("popcontext",),
                 ("write", "multiple..\n  ..lines", Level.error),
                 ("pushcontext", "test.dat"),
@@ -427,6 +462,13 @@ class FilterMinLog(unittest.TestCase):
             [
                 ("write", "my message", Level.user),
                 ("pushcontext", "my context"),
+                ("pushcontext", Iter("newiter", 0, 3)),
+                ("write", "x", Level.warning),
+                ("recontext", Iter("newiter", 1, 3)),
+                ("write", "y", Level.warning),
+                ("recontext", Iter("newiter", 2, 3)),
+                ("write", "z", Level.warning),
+                ("popcontext",),
                 ("write", "multiple..\n  ..lines", Level.error),
                 ("write", Data("test.dat", b"test2"), Level.user),
                 ("recontext", "generate_test"),
@@ -495,6 +537,12 @@ class FilterMinMaxLog(unittest.TestCase):
                 ("write", "b", Level.info),
                 ("recontext", "iter 3"),
                 ("write", "c", Level.info),
+                ("recontext", Iter("newiter", 0, 3)),
+                ("write", "x", Level.warning),
+                ("recontext", Iter("newiter", 1, 3)),
+                ("write", "y", Level.warning),
+                ("recontext", Iter("newiter", 2, 3)),
+                ("write", "z", Level.warning),
                 ("recontext", "test.dat"),
                 ("write", "generating", Level.info),
                 ("popcontext",),
@@ -526,6 +574,9 @@ class LoggingLog(unittest.TestCase):
                 "INFO:nutils:my context > iter 1 > a",
                 "INFO:nutils:my context > iter 2 > b",
                 "INFO:nutils:my context > iter 3 > c",
+                "WARNING:nutils:my context > newiter 1/3 > x",
+                "WARNING:nutils:my context > newiter 2/3 > y",
+                "WARNING:nutils:my context > newiter 3/3 > z",
                 "ERROR:nutils:my context > multiple..\n  ..lines",
                 "INFO:nutils:my context > test.dat > generating",
                 "Level 25:nutils:my context > test.dat [5 bytes]",
@@ -548,7 +599,7 @@ class NullLog(unittest.TestCase):
             self.assertIsInstance(_state.current, treelog.NullLog)
 
 
-class Iter(unittest.TestCase):
+class IterModule(unittest.TestCase):
     def setUp(self):
         self.recordlog = treelog.RecordLog(simplify=False)
         c = treelog.set(self.recordlog)
@@ -684,6 +735,76 @@ class Iter(unittest.TestCase):
             ("recontext", "value='a'"),
             ("recontext", "value='b'"),
             ("recontext", "value='c'"),
+            ("write", "hi", Level.info),
+            ("popcontext",),
+        )
+
+
+class IterContext(unittest.TestCase):
+    def setUp(self):
+        self.recordlog = treelog.RecordLog(simplify=False)
+        c = treelog.set(self.recordlog)
+        c.__enter__()
+        self.addCleanup(c.__exit__, None, None, None)
+
+    def assertMessages(self, *msg):
+        self.assertEqual(self.recordlog._messages, list(msg))
+
+    def test_context(self):
+        with treelog.itercontext("test", "abc") as myiter:
+            for i, c in enumerate(myiter):
+                self.assertEqual(c, "abc"[i])
+                treelog.info("hi")
+        self.assertMessages(
+            ("pushcontext", Iter("test", 0, 3)),
+            ("write", "hi", Level.info),
+            ("recontext", Iter("test", 1, 3)),
+            ("write", "hi", Level.info),
+            ("recontext", Iter("test", 2, 3)),
+            ("write", "hi", Level.info),
+            ("popcontext",),
+        )
+
+    def test_nocontext(self):
+        for i, c in enumerate(treelog.itercontext("test", "abc")):
+            self.assertEqual(c, "abc"[i])
+            treelog.info("hi")
+        self.assertMessages(
+            ("pushcontext", Iter("test", 0, 3)),
+            ("write", "hi", Level.info),
+            ("recontext", Iter("test", 1, 3)),
+            ("write", "hi", Level.info),
+            ("recontext", Iter("test", 2, 3)),
+            ("write", "hi", Level.info),
+            ("popcontext",),
+        )
+
+    def test_break_entered(self):
+        with (
+            warnings.catch_warnings(record=True) as w,
+            treelog.itercontext("test", [1, 2, 3]) as myiter,
+        ):
+            for item in myiter:
+                self.assertEqual(item, 1)
+                treelog.info("hi")
+                break
+            gc.collect()
+        self.assertEqual(w, [])
+        self.assertMessages(
+            ("pushcontext", Iter("test", 0, 3)),
+            ("write", "hi", Level.info),
+            ("popcontext",),
+        )
+
+    def test_break_notentered(self):
+        with self.assertWarns(ResourceWarning):
+            for item in treelog.itercontext("test", [1, 2, 3]):
+                self.assertEqual(item, 1)
+                treelog.info("hi")
+                break
+            gc.collect()
+        self.assertMessages(
+            ("pushcontext", Iter("test", 0, 3)),
             ("write", "hi", Level.info),
             ("popcontext",),
         )
